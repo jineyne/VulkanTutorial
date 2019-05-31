@@ -22,6 +22,10 @@ const std::vector<const char *> validationLayers = {
         "VK_LAYER_LUNARG_standard_validation"
 };
 
+const std::vector<const char *> deviceExtensions = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+};
+
 #if defined(DEBUG) || defined(_DEBUG) || defined(NDEBUG)
 #define DEBUG_MODE 1
 #define DEBUG_ONLY(x) x
@@ -36,6 +40,12 @@ struct QueueFamilyIndices {
 
     bool isGraphicsFamilyHasValue;
     bool isPresentFamilyHasValue;
+};
+
+struct SwapChainSupportDetails {
+    VkSurfaceCapabilitiesKHR capabilities;
+    std::vector<VkSurfaceFormatKHR> formats;
+    std::vector<VkPresentModeKHR> presentModes;
 };
 
 class VulkanApplication {
