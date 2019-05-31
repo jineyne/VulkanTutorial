@@ -5,13 +5,13 @@ void VulkanApplication::run() {
     initWindow();
     DEBUG_ONLY(setupDebugCallback());
     initVulkan();
-    initDebug();
+    DEBUG_ONLY(initDebug());
     pickPhysicalDevice();
 
     mainLoop();
 
     // deinit
-    deinitDebug();
+    DEBUG_ONLY(deinitDebug());
     deinitVulkan();
     deinitWindow();
 }
