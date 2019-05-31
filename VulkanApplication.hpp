@@ -48,6 +48,8 @@ private:
 
     VkQueue mGraphicsQueue = nullptr;
 
+    VkSurfaceKHR mSurface = nullptr;
+
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
     VkDebugUtilsMessengerCreateInfoEXT mDebugReportCallbackCreateInfo{};
 
@@ -74,6 +76,10 @@ private:
     void initLogicalDevice();
 
     void deinitLogicalDevice();
+
+    void initSurface();
+
+    void deinitSurface();
 
     bool checkValidationLayerSupport();
 

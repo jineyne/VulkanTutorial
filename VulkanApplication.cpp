@@ -7,10 +7,12 @@ void VulkanApplication::run() {
     initVulkan();
     DEBUG_ONLY(initDebug());
     pickPhysicalDevice();
+    initSurface();
 
     mainLoop();
 
     // deinit
+    deinitSurface();
     DEBUG_ONLY(deinitDebug());
     deinitVulkan();
     deinitWindow();
@@ -243,4 +245,12 @@ void VulkanApplication::initLogicalDevice() {
 
 void VulkanApplication::deinitLogicalDevice() {
     vkDestroyDevice(mLogicalDevice, nullptr);
+}
+
+void VulkanApplication::initSurface() {
+    CHECK(glfwCreateWindowSurface(mInstance, mWindow, nullptr, &mSurface), "failed to create surface");
+}
+
+void VulkanApplication::deinitSurface() {
+    vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
 }
