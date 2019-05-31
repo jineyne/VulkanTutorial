@@ -10,6 +10,7 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include <set>
 #include <cstring>
 #include <cassert>
 #include <cstdint>
@@ -50,6 +51,8 @@ private:
     VkDevice mLogicalDevice = nullptr;
 
     VkQueue mGraphicsQueue = nullptr;
+
+    VkQueue mPresentQueue = nullptr;
 
     VkSurfaceKHR mSurface = nullptr;
 
