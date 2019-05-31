@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
+
 project(VulkanTutorial)
 
 set(GLFW_BUILD_TESTS OFF)
@@ -9,5 +10,5 @@ add_subdirectory(vender/glfw)
 
 find_package(Vulkan REQUIRED)
 
-add_executable(VulkanTutorial main.cpp)
+add_executable(VulkanTutorial main.cpp VulkanApplication.cpp VulkanApplication.hpp)
 target_link_libraries(VulkanTutorial PUBLIC Vulkan::Vulkan glfw)
