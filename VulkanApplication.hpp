@@ -29,6 +29,11 @@ const std::vector<const char *> validationLayers = {
 #define DEBUG_ONLY(x)
 #endif
 
+struct QueueFamilyIndices {
+    uint32_t graphicsFamily;
+    bool isComplete;
+};
+
 class VulkanApplication {
 private:
     const uint32_t Width = 800, Height = 600;
@@ -73,6 +78,8 @@ private:
     std::vector<const char *> getRequiredExtensions();
 
     bool isDeviceSuitable(VkPhysicalDevice device);
+
+    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
 };
 
 #endif //VULKANTUTORIAL_VULKANAPPLICATION_HPP
