@@ -44,6 +44,8 @@ private:
 
     VkPhysicalDevice mPhysicalDevice = nullptr;
 
+    VkDevice mLogicalDevice = nullptr;
+
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
     VkDebugUtilsMessengerCreateInfoEXT mDebugReportCallbackCreateInfo{};
 
@@ -66,6 +68,10 @@ private:
     void deinitDebug();
 
     void pickPhysicalDevice();
+
+    void initLogicalDevice();
+
+    void deinitLogicalDevice();
 
     bool checkValidationLayerSupport();
 
