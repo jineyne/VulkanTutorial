@@ -8,11 +8,12 @@ void VulkanApplication::run() {
     DEBUG_ONLY(initDebug());
     initSurface();
     pickPhysicalDevice();
-    initSurface();
+    initLogicalDevice();
 
     mainLoop();
 
     // deinit
+    deinitLogicalDevice();
     deinitSurface();
     DEBUG_ONLY(deinitDebug());
     deinitVulkan();
