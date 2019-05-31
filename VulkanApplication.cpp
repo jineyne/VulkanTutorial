@@ -36,7 +36,7 @@ void VulkanApplication::deinitWindow() {
 void VulkanApplication::initVulkan() {
     DEBUG_ONLY({
                    if (!checkValidationLayerSupport()) {
-                       throw std::runtime_error("Validation layers requested. but not available.");
+                       throw std::runtime_error("Validation layers requested. but not available");
                    }
                });
 
@@ -63,7 +63,7 @@ void VulkanApplication::initVulkan() {
     instanceCreateInfo.enabledLayerCount = 0;
 #endif
 
-    CHECK(vkCreateInstance(&instanceCreateInfo, nullptr, &mInstance), "failed to create instance!");
+    CHECK(vkCreateInstance(&instanceCreateInfo, nullptr, &mInstance), "failed to create instance");
 }
 
 void VulkanApplication::deinitVulkan() {
@@ -130,6 +130,10 @@ std::vector<const char *> VulkanApplication::getRequiredExtensions() {
     return extensions;
 }
 
+bool VulkanApplication::isDeviceSuitable(VkPhysicalDevice device) {
+    return true;
+}
+
 void VulkanApplication::initDebug() {
     static PFN_vkCreateDebugUtilsMessengerEXT func = nullptr;
     if (func == nullptr) {
@@ -155,5 +159,26 @@ void VulkanApplication::deinitDebug() {
         func(mInstance, mDebugMessenger, nullptr);
     } else {
         throw std::runtime_error("VK_ERROR_EXTENSION_NOT_PRESENT");
+    }
+}
+
+void VulkanApplication::pickPhysicalDevice() {
+    uint32_t deviceCount = 0;
+    vkEnumeratePhysicalDevices(mInstance, &deviceCount, nullptr);
+    if (deviceCount == 0) {
+        throw std::runtime_error("failed to find GPUs with Vulkan support");
+    }
+    std::vector<VkPhysicalDevice> devices(deviceCount);
+    vkEnumeratePhysicalDevices(mInstance, &deviceCount, devices.data());
+
+    for (const auto& device : devices) {
+        if (isDeviceSuitable(device)) {
+            mPhysicalDevice = device;
+            break;
+        }
+    }
+
+    if (mPhysicalDevice == nullptr) {
+        throw std::runtime_error("failed to find a suitable GPU");
     }
 }

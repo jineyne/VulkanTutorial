@@ -37,6 +37,8 @@ private:
 
     VkInstance mInstance = nullptr;
 
+    VkPhysicalDevice mPhysicalDevice = nullptr;
+
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
     VkDebugUtilsMessengerCreateInfoEXT mDebugReportCallbackCreateInfo{};
 
@@ -58,6 +60,8 @@ private:
 
     void deinitDebug();
 
+    void pickPhysicalDevice();
+
     bool checkValidationLayerSupport();
 
     void mainLoop();
@@ -67,6 +71,8 @@ private:
                   const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData);
 
     std::vector<const char *> getRequiredExtensions();
+
+    bool isDeviceSuitable(VkPhysicalDevice device);
 };
 
 #endif //VULKANTUTORIAL_VULKANAPPLICATION_HPP
