@@ -46,6 +46,8 @@ private:
 
     VkDevice mLogicalDevice = nullptr;
 
+    VkQueue mGraphicsQueue = nullptr;
+
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
     VkDebugUtilsMessengerCreateInfoEXT mDebugReportCallbackCreateInfo{};
 

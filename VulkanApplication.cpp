@@ -237,6 +237,8 @@ void VulkanApplication::initLogicalDevice() {
 
     CHECK(vkCreateDevice(mPhysicalDevice, &deviceCreateInfo, nullptr, &mLogicalDevice),
           "failed to create logical device");
+
+    vkGetDeviceQueue(mLogicalDevice, indices.graphicsFamily, 0, &mGraphicsQueue);
 }
 
 void VulkanApplication::deinitLogicalDevice() {
