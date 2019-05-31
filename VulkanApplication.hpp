@@ -31,7 +31,10 @@ const std::vector<const char *> validationLayers = {
 
 struct QueueFamilyIndices {
     uint32_t graphicsFamily;
-    bool isComplete;
+    uint32_t presentFamily;
+
+    bool isGraphicsFamilyHasValue;
+    bool isPresentFamilyHasValue;
 };
 
 class VulkanApplication {

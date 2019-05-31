@@ -6,6 +6,7 @@ void VulkanApplication::run() {
     DEBUG_ONLY(setupDebugCallback());
     initVulkan();
     DEBUG_ONLY(initDebug());
+    initSurface();
     pickPhysicalDevice();
     initSurface();
 
@@ -135,7 +136,7 @@ std::vector<const char *> VulkanApplication::getRequiredExtensions() {
 
 bool VulkanApplication::isDeviceSuitable(VkPhysicalDevice device) {
     auto indices = findQueueFamilies(device);
-    return indices.isComplete;
+    return indices.isGraphicsFamilyHasValue;
 }
 
 QueueFamilyIndices VulkanApplication::findQueueFamilies(VkPhysicalDevice device) {
@@ -150,10 +151,18 @@ QueueFamilyIndices VulkanApplication::findQueueFamilies(VkPhysicalDevice device)
     for (const auto &queueFamily : queueFamilies) {
         if (queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
             indices.graphicsFamily = i;
-            indices.isComplete = true;
+            indices.isGraphicsFamilyHasValue = true;
         }
 
-        if (indices.isComplete) {
+        VkBool32 presentSurport = VK_FALSE;
+        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, mSurface, &presentSurport);
+
+        if (queueFamily.queueCount > 0 && presentSurport) {
+            indices.presentFamily = i;
+            indices.isPresentFamilyHasValue = true;
+        }
+
+        if (indices.isGraphicsFamilyHasValue || indices.isPresentFamilyHasValue) {
             break;
         }
 
