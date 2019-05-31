@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include <cstdint>
 #include <cassert>
+#include <vector>
 #include <iostream>
 
 #include <vulkan/vulkan.h>
@@ -9,11 +10,15 @@
 
 #include <GLFW/glfw3.h>
 
+#define CHECK(result, msg) if ((result) != VK_SUCCESS) throw std::runtime_error(msg)
+
 class VulkanApplication {
 private:
     const uint32_t Width = 800, Height = 600;
 
     GLFWwindow *mWindow = nullptr;
+
+    VkInstance mInstance = nullptr;
 
 public:
     void run() {
@@ -48,11 +53,40 @@ private:
     }
 
     void initVulkan() {
+        VkApplicationInfo applicationInfo{};
+        applicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+        applicationInfo.apiVersion = VK_VERSION_1_1;
+        applicationInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+        applicationInfo.pApplicationName = "Vulkan Tutorial";
+        applicationInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+        applicationInfo.pEngineName = "No Engine";
 
+        uint32_t glfwExtensionCount = 0;
+        const char **glfwExtensions;
+
+        glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+
+        VkInstanceCreateInfo instanceCreateInfo{};
+        instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+        instanceCreateInfo.enabledExtensionCount = glfwExtensionCount;
+        instanceCreateInfo.ppEnabledExtensionNames = glfwExtensions;
+        instanceCreateInfo.enabledLayerCount = 0;
+
+        CHECK(vkCreateInstance(&instanceCreateInfo, nullptr, &mInstance), "failed to create instance!");
+
+        uint32_t extensionCount = 0;
+        vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
+        std::vector<VkExtensionProperties> extensionProperties(extensionCount);
+        vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensionProperties.data());
+
+        std::cout << "Available extensions: " << std::endl;
+        for (const auto &property : extensionProperties) {
+            std::cout << "\t" << property.extensionName << std::endl;
+        }
     }
 
     void deinitVulkan() {
-
+        vkDestroyInstance(mInstance, nullptr);
     }
 
     void mainLoop() {
