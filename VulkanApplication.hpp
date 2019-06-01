@@ -77,6 +77,7 @@ private:
 
     std::vector<VkImageView> mSwapchainImageViews;
 
+    VkRenderPass mRenderPass;
     VkPipelineLayout mPipelineLayout;
 
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
@@ -117,6 +118,10 @@ private:
     void initImageViews();
 
     void deinitImageViews();
+
+    void initRenderPass();
+
+    void deinitRenderPass();
 
     void initGraphicsPipeline();
 

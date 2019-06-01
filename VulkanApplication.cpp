@@ -189,12 +189,14 @@ void VulkanApplication::run() {
     initLogicalDevice();
     initSwapchain();
     initImageViews();
+    initRenderPass();
     initGraphicsPipeline();
 
     mainLoop();
 
     // deinit
     deinitGraphicsPipeline();
+    deinitRenderPass();
     deinitImageViews();
     deinitSwapchain();
     deinitLogicalDevice();
@@ -481,6 +483,41 @@ void VulkanApplication::deinitImageViews() {
     for (auto imageView : mSwapchainImageViews) {
         vkDestroyImageView(mLogicalDevice, imageView, nullptr);
     }
+}
+
+void VulkanApplication::initRenderPass() {
+    VkAttachmentDescription colorAttachment{};
+    colorAttachment.format = mSwapchainImageFormat;
+    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    VkAttachmentReference colorAttachmentRef{};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachmentRef;
+
+    VkRenderPassCreateInfo renderPassCreateInfo{};
+    renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassCreateInfo.attachmentCount = 1;
+    renderPassCreateInfo.pAttachments = &colorAttachment;
+    renderPassCreateInfo.subpassCount = 1;
+    renderPassCreateInfo.pSubpasses = &subpass;
+
+    CHECK(vkCreateRenderPass(mLogicalDevice, &renderPassCreateInfo, nullptr, &mRenderPass),
+          "failed to create render pass");
+}
+
+void VulkanApplication::deinitRenderPass() {
+    vkDestroyRenderPass(mLogicalDevice, mRenderPass, nullptr);
 }
 
 void VulkanApplication::initGraphicsPipeline() {
