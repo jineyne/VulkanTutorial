@@ -196,10 +196,12 @@ void VulkanApplication::run() {
     initFrameBuffers();
     initCommandPool();
     initCommandBuffers();
+    initSync();
 
     mainLoop();
 
     // deinit
+    deinitSync();
     deinitCommandBuffers();
     deinitCommandPool();
     deinitFrameBuffers();
@@ -715,5 +717,20 @@ void VulkanApplication::initCommandBuffers() {
 
 void VulkanApplication::deinitCommandBuffers() {
     vkFreeCommandBuffers(mLogicalDevice, mCommandPool, mCommandBuffers.size(), mCommandBuffers.data());
+}
+
+void VulkanApplication::initSync() {
+    VkSemaphoreCreateInfo semaphoreCreateInfo{};
+    semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    CHECK(vkCreateSemaphore(mLogicalDevice, &semaphoreCreateInfo, nullptr, &mImageAvailableSemaphore),
+          "failed to create semaphore 1");
+    CHECK(vkCreateSemaphore(mLogicalDevice, &semaphoreCreateInfo, nullptr, &mRenderFinishedSemaphore),
+          "failed to create semaphore 2");
+}
+
+void VulkanApplication::deinitSync() {
+    vkDestroySemaphore(mLogicalDevice, mRenderFinishedSemaphore, nullptr);
+    vkDestroySemaphore(mLogicalDevice, mImageAvailableSemaphore, nullptr);
 }
 

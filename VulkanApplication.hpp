@@ -87,6 +87,9 @@ private:
     VkCommandPool mCommandPool;
     std::vector<VkCommandBuffer> mCommandBuffers;
 
+    VkSemaphore mImageAvailableSemaphore;
+    VkSemaphore mRenderFinishedSemaphore;
+
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
     VkDebugUtilsMessengerCreateInfoEXT mDebugReportCallbackCreateInfo{};
 
@@ -145,6 +148,10 @@ private:
     void initCommandBuffers();
 
     void deinitCommandBuffers();
+
+    void initSync();
+
+    void deinitSync();
 
     bool checkValidationLayerSupport();
 
