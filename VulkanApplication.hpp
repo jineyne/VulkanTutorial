@@ -17,6 +17,7 @@
 #include <cstdlib>
 #include <limits>
 #include <algorithm>
+#include <fstream>
 
 #define CHECK(result, msg) if ((result) != VK_SUCCESS) throw std::runtime_error(msg)
 
@@ -114,6 +115,10 @@ private:
     void initImageViews();
 
     void deinitImageViews();
+
+    void initGraphicsPipeline();
+
+    void deinitGraphicsPipeline();
 
     bool checkValidationLayerSupport();
 

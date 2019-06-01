@@ -148,6 +148,36 @@ bool isDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface) {
     return indices.isGraphicsFamilyHasValue && indices.isPresentFamilyHasValue && supported && swapChainAdequate;
 }
 
+static std::vector<char> readFile(const std::string& filename) {
+    std::ifstream file(filename, std::ios::ate | std::ios::binary);
+
+    if (!file.is_open()) {
+        throw std::runtime_error("failed to open file!");
+    }
+
+    size_t fileSize = (size_t) file.tellg();
+    std::vector<char> buffer(fileSize);
+
+    file.seekg(0);
+    file.read(buffer.data(), fileSize);
+    file.close();
+
+    return buffer;
+}
+
+VkShaderModule createShaderModule(VkDevice device, const std::vector<char>& code) {
+    VkShaderModuleCreateInfo shaderModuleCreateInfo{};
+    shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    shaderModuleCreateInfo.codeSize = code.size();
+    shaderModuleCreateInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
+
+    VkShaderModule shaderModule;
+    CHECK(vkCreateShaderModule(device, &shaderModuleCreateInfo, nullptr, &shaderModule), 
+          "failed to create shader module.");
+
+    return shaderModule;
+}
+
 void VulkanApplication::run() {
     // init
     initWindow();
@@ -450,3 +480,32 @@ void VulkanApplication::deinitImageViews() {
         vkDestroyImageView(mLogicalDevice, imageView, nullptr);
     }
 }
+
+void VulkanApplication::initGraphicsPipeline() {
+    auto vert = readFile("shaders/shader.vert.spv");
+    auto frag = readFile("shaders/shader.frag.spv");
+
+    auto vertModule = createShaderModule(mLogicalDevice, vert);
+    auto fragModule = createShaderModule(mLogicalDevice, frag);
+
+    VkPipelineShaderStageCreateInfo pipelineShaderStageCreateInfos[2]{};
+    pipelineShaderStageCreateInfos[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pipelineShaderStageCreateInfos[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    pipelineShaderStageCreateInfos[0].module = vertModule;
+    pipelineShaderStageCreateInfos[0].pName = "main";
+
+    pipelineShaderStageCreateInfos[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pipelineShaderStageCreateInfos[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    pipelineShaderStageCreateInfos[1].module = fragModule;
+    pipelineShaderStageCreateInfos[1].pName = "main";
+
+
+
+    vkDestroyShaderModule(mLogicalDevice, vertModule, nullptr);
+    vkDestroyShaderModule(mLogicalDevice, fragModule, nullptr);
+}
+
+void VulkanApplication::deinitGraphicsPipeline() {
+
+}
+
