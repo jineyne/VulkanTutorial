@@ -77,6 +77,8 @@ private:
 
     std::vector<VkImageView> mSwapchainImageViews;
 
+    VkPipelineLayout mPipelineLayout;
+
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
     VkDebugUtilsMessengerCreateInfoEXT mDebugReportCallbackCreateInfo{};
 
