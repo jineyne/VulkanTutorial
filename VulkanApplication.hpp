@@ -161,6 +161,8 @@ private:
 
     void deinitSync();
 
+    void onResize();
+
     bool checkValidationLayerSupport();
 
     void mainLoop();

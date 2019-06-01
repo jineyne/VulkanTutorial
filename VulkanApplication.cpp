@@ -77,16 +77,17 @@ static VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR
     return bestMode;
 }
 
-static VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities) {
+static VkExtent2D chooseSwapExtent(GLFWwindow *window, const VkSurfaceCapabilitiesKHR &capabilities) {
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
         return capabilities.currentExtent;
     } else {
-        VkExtent2D actualExtent = {VulkanApplication::Width, VulkanApplication::Height};
+        int width, height;
+        glfwGetFramebufferSize(window, &width, &height);
 
-        actualExtent.width = std::max(capabilities.minImageExtent.width,
-                                      std::min(capabilities.maxImageExtent.width, actualExtent.width));
-        actualExtent.height = std::max(capabilities.minImageExtent.height,
-                                       std::min(capabilities.maxImageExtent.height, actualExtent.height));
+        VkExtent2D actualExtent = {
+            static_cast<uint32_t>(width),
+            static_cast<uint32_t>(height)
+        };
 
         return actualExtent;
     }
@@ -227,8 +228,16 @@ void VulkanApplication::beginDraw() {
 
 void VulkanApplication::endDraw() {
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(mLogicalDevice, mSwapchain, UINT64_MAX, mImageAvailableSemaphores[mCurrentFrame], 
-                          nullptr, &imageIndex);
+    auto result = vkAcquireNextImageKHR(mLogicalDevice, mSwapchain, UINT64_MAX, 
+                                        mImageAvailableSemaphores[mCurrentFrame], 
+                                        nullptr, &imageIndex);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        onResize();
+        return;
+    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        throw std::runtime_error("failed to acquire swapchain image");
+    }
 
     VkSemaphore waitSemaphores[] = { mImageAvailableSemaphores[mCurrentFrame] };
     VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
@@ -258,7 +267,13 @@ void VulkanApplication::endDraw() {
     presentInfo.pSwapchains = swapChains;
     presentInfo.pImageIndices = &imageIndex;
 
-    vkQueuePresentKHR(mPresentQueue, &presentInfo);
+    result = vkQueuePresentKHR(mPresentQueue, &presentInfo);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        onResize();
+        return;
+    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        throw std::runtime_error("failed to acquire swapchain image");
+    }
 
     vkQueueWaitIdle(mPresentQueue);
 
@@ -272,7 +287,7 @@ void VulkanApplication::initWindow() {
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    // glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     mWindow = glfwCreateWindow(Width, Height, "Vulkan Application", nullptr, nullptr);
     assert(mWindow != nullptr);
@@ -471,7 +486,7 @@ void VulkanApplication::initSwapchain() {
 
     auto format = chooseSwapSurfaceFormat(support.formats);
     auto mode = chooseSwapPresentMode(support.presentModes);
-    auto extent = chooseSwapExtent(support.capabilities);
+    auto extent = chooseSwapExtent(mWindow, support.capabilities);
 
     uint32_t imageCount = support.capabilities.minImageCount;
     if (support.capabilities.maxImageCount > 0 && imageCount > support.capabilities.maxImageCount) {
@@ -841,5 +856,33 @@ void VulkanApplication::deinitSync() {
         vkDestroySemaphore(mLogicalDevice, mImageAvailableSemaphores[i], nullptr);
         vkDestroyFence(mLogicalDevice, mInFlightFences[i], nullptr);
     }
+}
+
+void VulkanApplication::onResize() {
+    int width = 0, height = 0;
+    while (width == 0 || height == 0) {
+        glfwGetFramebufferSize(mWindow, &width, &height);
+        glfwWaitEvents();
+    }
+
+    vkDeviceWaitIdle(mLogicalDevice);
+
+    // re create swapchain
+
+    deinitCommandBuffers();
+    deinitCommandPool();
+    deinitFrameBuffers();
+    deinitGraphicsPipeline();
+    deinitRenderPass();
+    deinitImageViews();
+    deinitSwapchain();
+
+    initSwapchain();
+    initImageViews();
+    initRenderPass();
+    initGraphicsPipeline();
+    initFrameBuffers();
+    initCommandPool();
+    initCommandBuffers();
 }
 
