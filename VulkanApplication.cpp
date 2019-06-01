@@ -617,11 +617,33 @@ void VulkanApplication::initGraphicsPipeline() {
     CHECK(vkCreatePipelineLayout(mLogicalDevice, &pipelineLayoutInfo, nullptr, &mPipelineLayout), 
           "failed to create pipeline layout");
 
+    VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo{};
+    graphicsPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    graphicsPipelineCreateInfo.stageCount = 2;
+    graphicsPipelineCreateInfo.pStages = pipelineShaderStageCreateInfos;
+    graphicsPipelineCreateInfo.pVertexInputState = &pipelineVertexInputStageCreateInfo;
+    graphicsPipelineCreateInfo.pInputAssemblyState = &pipelineInputAssemblyStageCreateInfo;
+    graphicsPipelineCreateInfo.pViewportState = &pipelineViewportStateCreateInfo;
+    graphicsPipelineCreateInfo.pRasterizationState = &pipelineRasterizationStateCreateInfo;
+    graphicsPipelineCreateInfo.pMultisampleState = &pipelineMultisampleStateCreateInfo;
+    graphicsPipelineCreateInfo.pDepthStencilState = nullptr;
+    graphicsPipelineCreateInfo.pColorBlendState = &pipelineColorBlendStateCreateInfo;
+    graphicsPipelineCreateInfo.pDynamicState = nullptr;
+    graphicsPipelineCreateInfo.layout = mPipelineLayout;
+    graphicsPipelineCreateInfo.renderPass = mRenderPass;
+    graphicsPipelineCreateInfo.subpass = 0;
+    graphicsPipelineCreateInfo.basePipelineHandle = nullptr;
+    graphicsPipelineCreateInfo.basePipelineIndex = -1;
+
+    CHECK(vkCreateGraphicsPipelines(mLogicalDevice, nullptr, 1, &graphicsPipelineCreateInfo, nullptr, &mPipeline),
+          "failed to create graphics pipeline");
+
     vkDestroyShaderModule(mLogicalDevice, vertModule, nullptr);
     vkDestroyShaderModule(mLogicalDevice, fragModule, nullptr);
 }
 
 void VulkanApplication::deinitGraphicsPipeline() {
+    vkDestroyPipeline(mLogicalDevice, mPipeline, nullptr);
     vkDestroyPipelineLayout(mLogicalDevice, mPipelineLayout, nullptr);
 }
 
