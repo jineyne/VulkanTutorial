@@ -74,6 +74,8 @@ private:
     VkFormat mSwapchainImageFormat;
     VkExtent2D mSwapchainExtent;
 
+    std::vector<VkImageView> mSwapchainImageViews;
+
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
     VkDebugUtilsMessengerCreateInfoEXT mDebugReportCallbackCreateInfo{};
 
@@ -108,6 +110,10 @@ private:
     void initSwapchain();
 
     void deinitSwapchain();
+
+    void initImageViews();
+
+    void deinitImageViews();
 
     bool checkValidationLayerSupport();
 

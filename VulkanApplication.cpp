@@ -93,10 +93,12 @@ void VulkanApplication::run() {
     pickPhysicalDevice();
     initLogicalDevice();
     initSwapchain();
+    initImageViews();
 
     mainLoop();
 
     // deinit
+    deinitImageViews();
     deinitSwapchain();
     deinitLogicalDevice();
     deinitSurface();
@@ -418,4 +420,32 @@ void VulkanApplication::initSwapchain() {
 
 void VulkanApplication::deinitSwapchain() {
     vkDestroySwapchainKHR(mLogicalDevice, mSwapchain, nullptr);
+}
+
+void VulkanApplication::initImageViews() {
+    mSwapchainImageViews.resize(mSwapchainImages.size());
+
+    for (auto i = 0; i < mSwapchainImages.size(); i++) {
+        VkImageViewCreateInfo imageViewCreateInfo{};
+        imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        imageViewCreateInfo.image = mSwapchainImages[i];
+        imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        imageViewCreateInfo.format = mSwapchainImageFormat;
+        imageViewCreateInfo.components = {
+            VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
+            VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY
+        };
+        imageViewCreateInfo.subresourceRange = {
+            VK_IMAGE_ASPECT_COLOR_BIT,
+            0, 1, 0, 1
+        };
+        CHECK(vkCreateImageView(mLogicalDevice, &imageViewCreateInfo, nullptr, &mSwapchainImageViews[i]), 
+              "failed to create image view");
+    }
+}
+
+void VulkanApplication::deinitImageViews() {
+    for (auto imageView : mSwapchainImageViews) {
+        vkDestroyImageView(mLogicalDevice, imageView, nullptr);
+    }
 }
