@@ -91,6 +91,7 @@ private:
 
     std::vector<VkSemaphore> mImageAvailableSemaphores;
     std::vector<VkSemaphore> mRenderFinishedSemaphores;
+    std::vector<VkFence> mInFlightFences;
     size_t mCurrentFrame = 0;
 
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
