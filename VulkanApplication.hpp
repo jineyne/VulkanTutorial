@@ -70,6 +70,9 @@ private:
     VkSurfaceKHR mSurface = nullptr;
 
     VkSwapchainKHR mSwapchain = nullptr;
+    std::vector<VkImage> mSwapchainImages;
+    VkFormat mSwapchainImageFormat;
+    VkExtent2D mSwapchainExtent;
 
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
     VkDebugUtilsMessengerCreateInfoEXT mDebugReportCallbackCreateInfo{};

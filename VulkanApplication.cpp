@@ -407,6 +407,13 @@ void VulkanApplication::initSwapchain() {
     swapchainCreateInfo.clipped = VK_TRUE;
     CHECK(vkCreateSwapchainKHR(mLogicalDevice, &swapchainCreateInfo, nullptr, &mSwapchain),
           "failed to create swapchain");
+
+    vkGetSwapchainImagesKHR(mLogicalDevice, mSwapchain, &imageCount, nullptr);
+    mSwapchainImages.resize(imageCount);
+    vkGetSwapchainImagesKHR(mLogicalDevice, mSwapchain, &imageCount, mSwapchainImages.data());
+
+    mSwapchainImageFormat = format.format;
+    mSwapchainExtent = extent;
 }
 
 void VulkanApplication::deinitSwapchain() {
