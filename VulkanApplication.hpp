@@ -82,6 +82,11 @@ private:
     VkPipeline mPipeline;
     VkPipelineLayout mPipelineLayout;
 
+    std::vector<VkFramebuffer> mSwapchainFrameBuffers;
+
+    VkCommandPool mCommandPool;
+    std::vector<VkCommandBuffer> mCommandBuffers;
+
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
     VkDebugUtilsMessengerCreateInfoEXT mDebugReportCallbackCreateInfo{};
 
@@ -128,6 +133,18 @@ private:
     void initGraphicsPipeline();
 
     void deinitGraphicsPipeline();
+
+    void initFrameBuffers();
+
+    void deinitFrameBuffers();
+
+    void initCommandPool();
+
+    void deinitCommandPool();
+
+    void initCommandBuffers();
+
+    void deinitCommandBuffers();
 
     bool checkValidationLayerSupport();
 

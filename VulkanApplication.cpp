@@ -187,19 +187,29 @@ void VulkanApplication::run() {
     initSurface();
     pickPhysicalDevice();
     initLogicalDevice();
+
     initSwapchain();
     initImageViews();
     initRenderPass();
     initGraphicsPipeline();
 
+    initFrameBuffers();
+    initCommandPool();
+    initCommandBuffers();
+
     mainLoop();
 
     // deinit
+    deinitCommandBuffers();
+    deinitCommandPool();
+    deinitFrameBuffers();
+
     deinitGraphicsPipeline();
     deinitRenderPass();
     deinitImageViews();
     deinitSwapchain();
     deinitLogicalDevice();
+
     deinitSurface();
     DEBUG_ONLY(deinitDebug());
     deinitVulkan();
@@ -645,5 +655,65 @@ void VulkanApplication::initGraphicsPipeline() {
 void VulkanApplication::deinitGraphicsPipeline() {
     vkDestroyPipeline(mLogicalDevice, mPipeline, nullptr);
     vkDestroyPipelineLayout(mLogicalDevice, mPipelineLayout, nullptr);
+}
+
+void VulkanApplication::initFrameBuffers() {
+    mSwapchainFrameBuffers.resize(mSwapchainImageViews.size());
+
+    for (auto i = 0; i < mSwapchainImageViews.size(); i++) {
+        VkImageView attachments[] = {
+            mSwapchainImageViews[i]
+        };
+
+        VkFramebufferCreateInfo framebufferCreateInfo{};
+        framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferCreateInfo.renderPass = mRenderPass;
+        framebufferCreateInfo.attachmentCount = 1;
+        framebufferCreateInfo.pAttachments = attachments;
+        framebufferCreateInfo.width = mSwapchainExtent.width;
+        framebufferCreateInfo.height = mSwapchainExtent.height;
+        framebufferCreateInfo.layers = 1;
+
+        CHECK(vkCreateFramebuffer(mLogicalDevice, &framebufferCreateInfo, nullptr, &mSwapchainFrameBuffers[i]),
+              "failed to create framebuffer");
+    }
+}
+
+void VulkanApplication::deinitFrameBuffers() {
+    for (auto framebuffer : mSwapchainFrameBuffers) {
+        vkDestroyFramebuffer(mLogicalDevice, framebuffer, nullptr);
+    }
+}
+
+void VulkanApplication::initCommandPool() {
+    auto indices = findQueueFamilies(mPhysicalDevice, mSurface);
+
+    VkCommandPoolCreateInfo commandPoolCreateInfo{};
+    commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    commandPoolCreateInfo.queueFamilyIndex = indices.graphicsFamily;
+
+    CHECK(vkCreateCommandPool(mLogicalDevice, &commandPoolCreateInfo, nullptr, &mCommandPool),
+          "failed to create command pool");
+}
+
+void VulkanApplication::deinitCommandPool() {
+    vkDestroyCommandPool(mLogicalDevice, mCommandPool, nullptr);
+}
+
+void VulkanApplication::initCommandBuffers() {
+    mCommandBuffers.resize(mSwapchainImageViews.size());
+
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = mCommandPool;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = static_cast<uint32_t>(mCommandBuffers.size());
+
+    CHECK(vkAllocateCommandBuffers(mLogicalDevice, &allocInfo, mCommandBuffers.data()),
+          "failed to allocate command buffers");
+}
+
+void VulkanApplication::deinitCommandBuffers() {
+    vkFreeCommandBuffers(mLogicalDevice, mCommandPool, mCommandBuffers.size(), mCommandBuffers.data());
 }
 
