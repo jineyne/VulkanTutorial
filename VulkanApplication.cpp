@@ -1,5 +1,14 @@
 #include "VulkanApplication.hpp"
 
+VKAPI_ATTR VkBool32 VKAPI_CALL 
+debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+              VkDebugUtilsMessageTypeFlagsEXT messageType,
+              const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
+              void *pUserData) {
+    std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+    return VK_FALSE;
+}
+
 static bool checkDeviceExtensionSupport(VkPhysicalDevice device) {
     uint32_t extensionCount;
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
@@ -81,6 +90,62 @@ static VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities)
 
         return actualExtent;
     }
+}
+
+std::vector<const char *> getRequiredExtensions() {
+    uint32_t glfwExtensionCount = 0;
+    const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+
+    std::vector<const char *> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+    DEBUG_ONLY(extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME));
+
+    return extensions;
+}
+
+QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface) {
+    QueueFamilyIndices indices{};
+
+    uint32_t queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+    int i = 0;
+    for (const auto &queueFamily : queueFamilies) {
+        if (queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+            indices.graphicsFamily = i;
+            indices.isGraphicsFamilyHasValue = true;
+        }
+
+        VkBool32 presentSurport = VK_FALSE;
+        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSurport);
+
+        if (queueFamily.queueCount > 0 && presentSurport) {
+            indices.presentFamily = i;
+            indices.isPresentFamilyHasValue = true;
+        }
+
+        if (indices.isGraphicsFamilyHasValue || indices.isPresentFamilyHasValue) {
+            break;
+        }
+
+        i++;
+    }
+
+    return indices;
+}
+
+bool isDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface) {
+    auto indices = findQueueFamilies(device, surface);
+    auto supported = checkDeviceExtensionSupport(device);
+
+    bool swapChainAdequate = false;
+    if (supported) {
+        SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device, surface);
+        swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
+    }
+
+    return indices.isGraphicsFamilyHasValue && indices.isPresentFamilyHasValue && supported && swapChainAdequate;
 }
 
 void VulkanApplication::run() {
@@ -170,7 +235,7 @@ void VulkanApplication::setupDebugCallback() {
     mDebugReportCallbackCreateInfo.messageType =
             VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
             VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    mDebugReportCallbackCreateInfo.pfnUserCallback = DebugCallback;
+    mDebugReportCallbackCreateInfo.pfnUserCallback = debugCallback;
     mDebugReportCallbackCreateInfo.pUserData = nullptr;
 }
 
@@ -202,70 +267,6 @@ void VulkanApplication::mainLoop() {
     while (!glfwWindowShouldClose(mWindow)) {
         glfwPollEvents();
     }
-}
-
-VKAPI_ATTR VkBool32 VKAPI_CALL VulkanApplication::DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-                                                                VkDebugUtilsMessageTypeFlagsEXT messageType,
-                                                                const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
-                                                                void *pUserData) {
-    std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
-    return VK_FALSE;
-}
-
-std::vector<const char *> VulkanApplication::getRequiredExtensions() {
-    uint32_t glfwExtensionCount = 0;
-    const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-
-    std::vector<const char *> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
-    DEBUG_ONLY(extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME));
-
-    return extensions;
-}
-
-bool VulkanApplication::isDeviceSuitable(VkPhysicalDevice device) {
-    auto indices = findQueueFamilies(device);
-    auto supported = checkDeviceExtensionSupport(device);
-
-    bool swapChainAdequate = false;
-    if (supported) {
-        SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device, mSurface);
-        swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
-    }
-
-    return indices.isGraphicsFamilyHasValue && indices.isPresentFamilyHasValue && supported && swapChainAdequate;
-}
-
-QueueFamilyIndices VulkanApplication::findQueueFamilies(VkPhysicalDevice device) {
-    QueueFamilyIndices indices{};
-
-    uint32_t queueFamilyCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
-    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
-
-    int i = 0;
-    for (const auto &queueFamily : queueFamilies) {
-        if (queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-            indices.graphicsFamily = i;
-            indices.isGraphicsFamilyHasValue = true;
-        }
-
-        VkBool32 presentSurport = VK_FALSE;
-        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, mSurface, &presentSurport);
-
-        if (queueFamily.queueCount > 0 && presentSurport) {
-            indices.presentFamily = i;
-            indices.isPresentFamilyHasValue = true;
-        }
-
-        if (indices.isGraphicsFamilyHasValue || indices.isPresentFamilyHasValue) {
-            break;
-        }
-
-        i++;
-    }
-
-    return indices;
 }
 
 void VulkanApplication::initDebug() {
@@ -306,7 +307,7 @@ void VulkanApplication::pickPhysicalDevice() {
     vkEnumeratePhysicalDevices(mInstance, &deviceCount, devices.data());
 
     for (const auto &device : devices) {
-        if (isDeviceSuitable(device)) {
+        if (isDeviceSuitable(device, mSurface)) {
             mPhysicalDevice = device;
             break;
         }
@@ -318,7 +319,7 @@ void VulkanApplication::pickPhysicalDevice() {
 }
 
 void VulkanApplication::initLogicalDevice() {
-    auto indices = findQueueFamilies(mPhysicalDevice);
+    auto indices = findQueueFamilies(mPhysicalDevice, mSurface);
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
     std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily, indices.presentFamily};
 
@@ -390,7 +391,7 @@ void VulkanApplication::initSwapchain() {
     swapchainCreateInfo.imageArrayLayers = 1;
     swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-    QueueFamilyIndices indices = findQueueFamilies(mPhysicalDevice);
+    QueueFamilyIndices indices = findQueueFamilies(mPhysicalDevice, mSurface);
     uint32_t queueFamilyIndices[] = {indices.graphicsFamily, indices.presentFamily};
 
     if (indices.graphicsFamily != indices.presentFamily) {

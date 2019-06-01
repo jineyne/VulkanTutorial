@@ -1,7 +1,5 @@
 #include "VulkanApplication.hpp"
 
-
-
 int main() {
     std::cout << "Running!" << std::endl;
     VulkanApplication app;

@@ -20,14 +20,6 @@
 
 #define CHECK(result, msg) if ((result) != VK_SUCCESS) throw std::runtime_error(msg)
 
-const std::vector<const char *> validationLayers = {
-        "VK_LAYER_LUNARG_standard_validation"
-};
-
-const std::vector<const char *> deviceExtensions = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME
-};
-
 #if defined(DEBUG) || defined(_DEBUG) || defined(NDEBUG)
 #define DEBUG_MODE 1
 #define DEBUG_ONLY(x) x
@@ -35,6 +27,14 @@ const std::vector<const char *> deviceExtensions = {
 #define DEBUG_MODE 0
 #define DEBUG_ONLY(x)
 #endif
+
+const std::vector<const char *> validationLayers = {
+        "VK_LAYER_LUNARG_standard_validation"
+};
+
+const std::vector<const char *> deviceExtensions = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+};
 
 struct QueueFamilyIndices {
     uint32_t graphicsFamily;
@@ -118,16 +118,6 @@ private:
     bool checkValidationLayerSupport();
 
     void mainLoop();
-
-    static VKAPI_ATTR VkBool32 VKAPI_CALL
-    DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType,
-                  const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData);
-
-    std::vector<const char *> getRequiredExtensions();
-
-    bool isDeviceSuitable(VkPhysicalDevice device);
-
-    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
 };
 
 #endif //VULKANTUTORIAL_VULKANAPPLICATION_HPP
