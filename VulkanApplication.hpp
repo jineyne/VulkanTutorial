@@ -15,6 +15,7 @@
 #include <cassert>
 #include <cstdint>
 #include <cstdlib>
+#include <limits>
 
 #define CHECK(result, msg) if ((result) != VK_SUCCESS) throw std::runtime_error(msg)
 
@@ -49,9 +50,10 @@ struct SwapChainSupportDetails {
 };
 
 class VulkanApplication {
-private:
-    const uint32_t Width = 800, Height = 600;
+public:
+    const static uint32_t Width = 800, Height = 600;
 
+private:
     GLFWwindow *mWindow = nullptr;
 
     VkInstance mInstance = nullptr;
@@ -65,6 +67,8 @@ private:
     VkQueue mPresentQueue = nullptr;
 
     VkSurfaceKHR mSurface = nullptr;
+
+    VkSwapchainKHR mSwapchain = nullptr;
 
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
     VkDebugUtilsMessengerCreateInfoEXT mDebugReportCallbackCreateInfo{};
@@ -96,6 +100,10 @@ private:
     void initSurface();
 
     void deinitSurface();
+
+    void initSwapchain();
+
+    void deinitSwapchain();
 
     bool checkValidationLayerSupport();
 
