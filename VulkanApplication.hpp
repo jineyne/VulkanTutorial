@@ -96,6 +96,10 @@ private:
 public:
     void run();
 
+    void beginDraw();
+
+    void endDraw();
+
 private:
     void initWindow();
 

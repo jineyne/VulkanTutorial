@@ -200,6 +200,8 @@ void VulkanApplication::run() {
 
     mainLoop();
 
+    vkDeviceWaitIdle(mLogicalDevice);
+
     // deinit
     deinitSync();
     deinitCommandBuffers();
@@ -216,6 +218,44 @@ void VulkanApplication::run() {
     DEBUG_ONLY(deinitDebug());
     deinitVulkan();
     deinitWindow();
+}
+
+void VulkanApplication::beginDraw() {
+}
+
+void VulkanApplication::endDraw() {
+    uint32_t imageIndex;
+    vkAcquireNextImageKHR(mLogicalDevice, mSwapchain, UINT64_MAX, mImageAvailableSemaphore, nullptr, &imageIndex);
+
+    VkSemaphore waitSemaphores[] = { mImageAvailableSemaphore };
+    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &mCommandBuffers[imageIndex];
+
+    VkSemaphore signalSemaphores[] = { mRenderFinishedSemaphore };
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    CHECK(vkQueueSubmit(mGraphicsQueue, 1, &submitInfo, nullptr),
+          "failed to submit draw command buffer");
+
+    VkSwapchainKHR swapChains[] = { mSwapchain };
+
+    VkPresentInfoKHR presentInfo = {};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores;
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swapChains;
+    presentInfo.pImageIndices = &imageIndex;
+
+    vkQueuePresentKHR(mPresentQueue, &presentInfo);
 }
 
 void VulkanApplication::initWindow() {
@@ -312,6 +352,10 @@ bool VulkanApplication::checkValidationLayerSupport() {
 void VulkanApplication::mainLoop() {
     while (!glfwWindowShouldClose(mWindow)) {
         glfwPollEvents();
+
+        beginDraw();
+        // to do stuff
+        endDraw();
     }
 }
 
@@ -723,6 +767,39 @@ void VulkanApplication::initCommandBuffers() {
 
     CHECK(vkAllocateCommandBuffers(mLogicalDevice, &allocInfo, mCommandBuffers.data()),
           "failed to allocate command buffers");
+
+
+    for (size_t i = 0; i < mCommandBuffers.size(); i++) {
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+        beginInfo.pInheritanceInfo = nullptr;
+
+        CHECK(vkBeginCommandBuffer(mCommandBuffers[i], &beginInfo),
+              "failed to begin recording command buffer");
+
+        VkRenderPassBeginInfo renderPassBeginInfo{};
+        renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        renderPassBeginInfo.renderPass = mRenderPass;
+        renderPassBeginInfo.framebuffer = mSwapchainFrameBuffers[i];
+        renderPassBeginInfo.renderArea.offset = { 0, 0 };
+        renderPassBeginInfo.renderArea.extent = mSwapchainExtent;
+
+        VkClearValue clearColor = { 0.0f, 0.0f, 0.0f, 1.0f };
+        renderPassBeginInfo.clearValueCount = 1;
+        renderPassBeginInfo.pClearValues = &clearColor;
+
+        vkCmdBeginRenderPass(mCommandBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+        vkCmdBindPipeline(mCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline);
+
+        vkCmdDraw(mCommandBuffers[i], 3, 1, 0, 0);
+
+        vkCmdEndRenderPass(mCommandBuffers[i]);
+
+        CHECK(vkEndCommandBuffer(mCommandBuffers[i]),
+              "failed to record command buffer!");
+    }
 }
 
 void VulkanApplication::deinitCommandBuffers() {
