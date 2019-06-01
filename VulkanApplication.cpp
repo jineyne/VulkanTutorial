@@ -225,9 +225,10 @@ void VulkanApplication::beginDraw() {
 
 void VulkanApplication::endDraw() {
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(mLogicalDevice, mSwapchain, UINT64_MAX, mImageAvailableSemaphore, nullptr, &imageIndex);
+    vkAcquireNextImageKHR(mLogicalDevice, mSwapchain, UINT64_MAX, mImageAvailableSemaphore[mCurrentFrame], 
+                          nullptr, &imageIndex);
 
-    VkSemaphore waitSemaphores[] = { mImageAvailableSemaphore };
+    VkSemaphore waitSemaphores[] = { mImageAvailableSemaphore[mCurrentFrame] };
     VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 
     VkSubmitInfo submitInfo{};
@@ -238,7 +239,7 @@ void VulkanApplication::endDraw() {
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &mCommandBuffers[imageIndex];
 
-    VkSemaphore signalSemaphores[] = { mRenderFinishedSemaphore };
+    VkSemaphore signalSemaphores[] = { mRenderFinishedSemaphore[mCurrentFrame] };
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
@@ -256,6 +257,10 @@ void VulkanApplication::endDraw() {
     presentInfo.pImageIndices = &imageIndex;
 
     vkQueuePresentKHR(mPresentQueue, &presentInfo);
+
+    vkQueueWaitIdle(mPresentQueue);
+
+    mCurrentFrame = (mCurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 void VulkanApplication::initWindow() {
@@ -807,17 +812,24 @@ void VulkanApplication::deinitCommandBuffers() {
 }
 
 void VulkanApplication::initSync() {
+    mImageAvailableSemaphore.resize(MAX_FRAMES_IN_FLIGHT);
+    mRenderFinishedSemaphore.resize(MAX_FRAMES_IN_FLIGHT);
+
     VkSemaphoreCreateInfo semaphoreCreateInfo{};
     semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-    CHECK(vkCreateSemaphore(mLogicalDevice, &semaphoreCreateInfo, nullptr, &mImageAvailableSemaphore),
-          "failed to create semaphore 1");
-    CHECK(vkCreateSemaphore(mLogicalDevice, &semaphoreCreateInfo, nullptr, &mRenderFinishedSemaphore),
-          "failed to create semaphore 2");
+    for (auto i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        CHECK(vkCreateSemaphore(mLogicalDevice, &semaphoreCreateInfo, nullptr, &mImageAvailableSemaphore[i]),
+              "failed to create semaphore 1");
+        CHECK(vkCreateSemaphore(mLogicalDevice, &semaphoreCreateInfo, nullptr, &mRenderFinishedSemaphore[i]),
+              "failed to create semaphore 2");
+    }
 }
 
 void VulkanApplication::deinitSync() {
-    vkDestroySemaphore(mLogicalDevice, mRenderFinishedSemaphore, nullptr);
-    vkDestroySemaphore(mLogicalDevice, mImageAvailableSemaphore, nullptr);
+    for (auto i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vkDestroySemaphore(mLogicalDevice, mRenderFinishedSemaphore[i], nullptr);
+        vkDestroySemaphore(mLogicalDevice, mImageAvailableSemaphore[i], nullptr);
+    }
 }
 

@@ -29,6 +29,8 @@
 #define DEBUG_ONLY(x)
 #endif
 
+const int MAX_FRAMES_IN_FLIGHT = 2;
+
 const std::vector<const char *> validationLayers = {
         "VK_LAYER_LUNARG_standard_validation"
 };
@@ -87,8 +89,9 @@ private:
     VkCommandPool mCommandPool;
     std::vector<VkCommandBuffer> mCommandBuffers;
 
-    VkSemaphore mImageAvailableSemaphore;
-    VkSemaphore mRenderFinishedSemaphore;
+    std::vector<VkSemaphore> mImageAvailableSemaphores;
+    std::vector<VkSemaphore> mRenderFinishedSemaphores;
+    size_t mCurrentFrame = 0;
 
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
     VkDebugUtilsMessengerCreateInfoEXT mDebugReportCallbackCreateInfo{};
