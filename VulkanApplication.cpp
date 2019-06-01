@@ -77,16 +77,17 @@ static VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR
     return bestMode;
 }
 
-static VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities) {
+static VkExtent2D chooseSwapExtent(GLFWwindow *window, const VkSurfaceCapabilitiesKHR &capabilities) {
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
         return capabilities.currentExtent;
     } else {
-        VkExtent2D actualExtent = {VulkanApplication::Width, VulkanApplication::Height};
+        int width, height;
+        glfwGetFramebufferSize(window, &width, &height);
 
-        actualExtent.width = std::max(capabilities.minImageExtent.width,
-                                      std::min(capabilities.maxImageExtent.width, actualExtent.width));
-        actualExtent.height = std::max(capabilities.minImageExtent.height,
-                                       std::min(capabilities.maxImageExtent.height, actualExtent.height));
+        VkExtent2D actualExtent = {
+            static_cast<uint32_t>(width),
+            static_cast<uint32_t>(height)
+        };
 
         return actualExtent;
     }
@@ -148,6 +149,36 @@ bool isDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface) {
     return indices.isGraphicsFamilyHasValue && indices.isPresentFamilyHasValue && supported && swapChainAdequate;
 }
 
+static std::vector<char> readFile(const std::string& filename) {
+    std::ifstream file(filename, std::ios::ate | std::ios::binary);
+
+    if (!file.is_open()) {
+        throw std::runtime_error("failed to open file!");
+    }
+
+    size_t fileSize = (size_t) file.tellg();
+    std::vector<char> buffer(fileSize);
+
+    file.seekg(0);
+    file.read(buffer.data(), fileSize);
+    file.close();
+
+    return buffer;
+}
+
+VkShaderModule createShaderModule(VkDevice device, const std::vector<char>& code) {
+    VkShaderModuleCreateInfo shaderModuleCreateInfo{};
+    shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    shaderModuleCreateInfo.codeSize = code.size();
+    shaderModuleCreateInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
+
+    VkShaderModule shaderModule;
+    CHECK(vkCreateShaderModule(device, &shaderModuleCreateInfo, nullptr, &shaderModule), 
+          "failed to create shader module.");
+
+    return shaderModule;
+}
+
 void VulkanApplication::run() {
     // init
     initWindow();
@@ -157,19 +188,96 @@ void VulkanApplication::run() {
     initSurface();
     pickPhysicalDevice();
     initLogicalDevice();
+
     initSwapchain();
     initImageViews();
+    initRenderPass();
+    initGraphicsPipeline();
+
+    initFrameBuffers();
+    initCommandPool();
+    initCommandBuffers();
+    initSync();
 
     mainLoop();
 
+    vkDeviceWaitIdle(mLogicalDevice);
+
     // deinit
+    deinitSync();
+    deinitCommandBuffers();
+    deinitCommandPool();
+    deinitFrameBuffers();
+
+    deinitGraphicsPipeline();
+    deinitRenderPass();
     deinitImageViews();
     deinitSwapchain();
     deinitLogicalDevice();
+
     deinitSurface();
     DEBUG_ONLY(deinitDebug());
     deinitVulkan();
     deinitWindow();
+}
+
+void VulkanApplication::beginDraw() {
+    vkWaitForFences(mLogicalDevice, 1, &mInFlightFences[mCurrentFrame], VK_TRUE, UINT64_MAX);
+    vkResetFences(mLogicalDevice, 1, &mInFlightFences[mCurrentFrame]);
+}
+
+void VulkanApplication::endDraw() {
+    uint32_t imageIndex;
+    auto result = vkAcquireNextImageKHR(mLogicalDevice, mSwapchain, UINT64_MAX, 
+                                        mImageAvailableSemaphores[mCurrentFrame], 
+                                        nullptr, &imageIndex);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        onResize();
+        return;
+    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        throw std::runtime_error("failed to acquire swapchain image");
+    }
+
+    VkSemaphore waitSemaphores[] = { mImageAvailableSemaphores[mCurrentFrame] };
+    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &mCommandBuffers[imageIndex];
+
+    VkSemaphore signalSemaphores[] = { mRenderFinishedSemaphores[mCurrentFrame] };
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    CHECK(vkQueueSubmit(mGraphicsQueue, 1, &submitInfo, mInFlightFences[mCurrentFrame]),
+          "failed to submit draw command buffer");
+
+    VkSwapchainKHR swapChains[] = { mSwapchain };
+
+    VkPresentInfoKHR presentInfo = {};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores;
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swapChains;
+    presentInfo.pImageIndices = &imageIndex;
+
+    result = vkQueuePresentKHR(mPresentQueue, &presentInfo);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        onResize();
+        return;
+    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        throw std::runtime_error("failed to acquire swapchain image");
+    }
+
+    vkQueueWaitIdle(mPresentQueue);
+
+    mCurrentFrame = (mCurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 void VulkanApplication::initWindow() {
@@ -179,7 +287,7 @@ void VulkanApplication::initWindow() {
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    // glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     mWindow = glfwCreateWindow(Width, Height, "Vulkan Application", nullptr, nullptr);
     assert(mWindow != nullptr);
@@ -266,6 +374,10 @@ bool VulkanApplication::checkValidationLayerSupport() {
 void VulkanApplication::mainLoop() {
     while (!glfwWindowShouldClose(mWindow)) {
         glfwPollEvents();
+
+        beginDraw();
+        // to do stuff
+        endDraw();
     }
 }
 
@@ -374,7 +486,7 @@ void VulkanApplication::initSwapchain() {
 
     auto format = chooseSwapSurfaceFormat(support.formats);
     auto mode = chooseSwapPresentMode(support.presentModes);
-    auto extent = chooseSwapExtent(support.capabilities);
+    auto extent = chooseSwapExtent(mWindow, support.capabilities);
 
     uint32_t imageCount = support.capabilities.minImageCount;
     if (support.capabilities.maxImageCount > 0 && imageCount > support.capabilities.maxImageCount) {
@@ -450,3 +562,327 @@ void VulkanApplication::deinitImageViews() {
         vkDestroyImageView(mLogicalDevice, imageView, nullptr);
     }
 }
+
+void VulkanApplication::initRenderPass() {
+    VkAttachmentDescription colorAttachment{};
+    colorAttachment.format = mSwapchainImageFormat;
+    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    VkAttachmentReference colorAttachmentRef{};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpassDescription{};
+    subpassDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpassDescription.colorAttachmentCount = 1;
+    subpassDescription.pColorAttachments = &colorAttachmentRef;
+
+    VkSubpassDependency subpassDependency = {};
+    subpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    subpassDependency.dstSubpass = 0;
+    subpassDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    subpassDependency.srcAccessMask = 0;
+    subpassDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    subpassDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    VkRenderPassCreateInfo renderPassCreateInfo{};
+    renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassCreateInfo.attachmentCount = 1;
+    renderPassCreateInfo.pAttachments = &colorAttachment;
+    renderPassCreateInfo.subpassCount = 1;
+    renderPassCreateInfo.pSubpasses = &subpassDescription;
+    renderPassCreateInfo.dependencyCount = 1;
+    renderPassCreateInfo.pDependencies = &subpassDependency;
+
+    CHECK(vkCreateRenderPass(mLogicalDevice, &renderPassCreateInfo, nullptr, &mRenderPass),
+          "failed to create render pass");
+}
+
+void VulkanApplication::deinitRenderPass() {
+    vkDestroyRenderPass(mLogicalDevice, mRenderPass, nullptr);
+}
+
+void VulkanApplication::initGraphicsPipeline() {
+    auto vert = readFile("shaders/shader.vert.spv");
+    auto frag = readFile("shaders/shader.frag.spv");
+
+    auto vertModule = createShaderModule(mLogicalDevice, vert);
+    auto fragModule = createShaderModule(mLogicalDevice, frag);
+
+    VkPipelineShaderStageCreateInfo pipelineShaderStageCreateInfos[2]{};
+    pipelineShaderStageCreateInfos[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pipelineShaderStageCreateInfos[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    pipelineShaderStageCreateInfos[0].module = vertModule;
+    pipelineShaderStageCreateInfos[0].pName = "main";
+
+    pipelineShaderStageCreateInfos[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pipelineShaderStageCreateInfos[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    pipelineShaderStageCreateInfos[1].module = fragModule;
+    pipelineShaderStageCreateInfos[1].pName = "main";
+
+    VkPipelineVertexInputStateCreateInfo pipelineVertexInputStageCreateInfo{};
+    pipelineVertexInputStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    pipelineVertexInputStageCreateInfo.vertexBindingDescriptionCount = 0;
+    pipelineVertexInputStageCreateInfo.pVertexAttributeDescriptions = nullptr;
+    pipelineVertexInputStageCreateInfo.vertexAttributeDescriptionCount = 0;
+    pipelineVertexInputStageCreateInfo.pVertexAttributeDescriptions = 0;
+
+    VkPipelineInputAssemblyStateCreateInfo pipelineInputAssemblyStageCreateInfo{};
+    pipelineInputAssemblyStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    pipelineInputAssemblyStageCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    pipelineInputAssemblyStageCreateInfo.primitiveRestartEnable = VK_FALSE;
+
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = (float) mSwapchainExtent.width;
+    viewport.height = (float) mSwapchainExtent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    VkRect2D scissor{};
+    scissor.offset = { 0, 0 };
+    scissor.extent = mSwapchainExtent;
+
+    VkPipelineViewportStateCreateInfo pipelineViewportStateCreateInfo{};
+    pipelineViewportStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    pipelineViewportStateCreateInfo.viewportCount = 1;
+    pipelineViewportStateCreateInfo.pViewports = &viewport;
+    pipelineViewportStateCreateInfo.scissorCount = 1;
+    pipelineViewportStateCreateInfo.pScissors = &scissor;
+
+    VkPipelineRasterizationStateCreateInfo pipelineRasterizationStateCreateInfo{};
+    pipelineRasterizationStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    pipelineRasterizationStateCreateInfo.depthClampEnable = VK_FALSE;
+    pipelineRasterizationStateCreateInfo.rasterizerDiscardEnable = VK_FALSE;
+    pipelineRasterizationStateCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;
+    pipelineRasterizationStateCreateInfo.lineWidth = 1.0f;
+    pipelineRasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+    pipelineRasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    pipelineRasterizationStateCreateInfo.depthBiasEnable = VK_FALSE;
+
+    VkPipelineMultisampleStateCreateInfo pipelineMultisampleStateCreateInfo{};
+    pipelineMultisampleStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    pipelineMultisampleStateCreateInfo.sampleShadingEnable = VK_FALSE;
+    pipelineMultisampleStateCreateInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    pipelineMultisampleStateCreateInfo.minSampleShading = 1.0f;
+
+    VkPipelineColorBlendAttachmentState pipelineColorBlendAttachmentState{};
+    pipelineColorBlendAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    pipelineColorBlendAttachmentState.blendEnable = VK_FALSE;
+
+    VkPipelineColorBlendStateCreateInfo pipelineColorBlendStateCreateInfo{};
+    pipelineColorBlendStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    pipelineColorBlendStateCreateInfo.logicOpEnable = VK_FALSE;
+    pipelineColorBlendStateCreateInfo.logicOp = VK_LOGIC_OP_COPY;
+    pipelineColorBlendStateCreateInfo.attachmentCount = 1;
+    pipelineColorBlendStateCreateInfo.pAttachments = &pipelineColorBlendAttachmentState;
+    pipelineColorBlendStateCreateInfo.blendConstants[0] = { 0.0f, };
+
+    VkDynamicState dynamicStates[] = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_LINE_WIDTH
+    };
+
+    VkPipelineDynamicStateCreateInfo pipelineDynamicStateCreateInfo{};
+    pipelineDynamicStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    pipelineDynamicStateCreateInfo.dynamicStateCount = 2;
+    pipelineDynamicStateCreateInfo.pDynamicStates = dynamicStates;
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = 0; // Optional
+    pipelineLayoutInfo.pSetLayouts = nullptr; // Optional
+    pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
+    pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
+
+    CHECK(vkCreatePipelineLayout(mLogicalDevice, &pipelineLayoutInfo, nullptr, &mPipelineLayout), 
+          "failed to create pipeline layout");
+
+    VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo{};
+    graphicsPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    graphicsPipelineCreateInfo.stageCount = 2;
+    graphicsPipelineCreateInfo.pStages = pipelineShaderStageCreateInfos;
+    graphicsPipelineCreateInfo.pVertexInputState = &pipelineVertexInputStageCreateInfo;
+    graphicsPipelineCreateInfo.pInputAssemblyState = &pipelineInputAssemblyStageCreateInfo;
+    graphicsPipelineCreateInfo.pViewportState = &pipelineViewportStateCreateInfo;
+    graphicsPipelineCreateInfo.pRasterizationState = &pipelineRasterizationStateCreateInfo;
+    graphicsPipelineCreateInfo.pMultisampleState = &pipelineMultisampleStateCreateInfo;
+    graphicsPipelineCreateInfo.pDepthStencilState = nullptr;
+    graphicsPipelineCreateInfo.pColorBlendState = &pipelineColorBlendStateCreateInfo;
+    graphicsPipelineCreateInfo.pDynamicState = nullptr;
+    graphicsPipelineCreateInfo.layout = mPipelineLayout;
+    graphicsPipelineCreateInfo.renderPass = mRenderPass;
+    graphicsPipelineCreateInfo.subpass = 0;
+    graphicsPipelineCreateInfo.basePipelineHandle = nullptr;
+    graphicsPipelineCreateInfo.basePipelineIndex = -1;
+
+    CHECK(vkCreateGraphicsPipelines(mLogicalDevice, nullptr, 1, &graphicsPipelineCreateInfo, nullptr, &mPipeline),
+          "failed to create graphics pipeline");
+
+    vkDestroyShaderModule(mLogicalDevice, vertModule, nullptr);
+    vkDestroyShaderModule(mLogicalDevice, fragModule, nullptr);
+}
+
+void VulkanApplication::deinitGraphicsPipeline() {
+    vkDestroyPipeline(mLogicalDevice, mPipeline, nullptr);
+    vkDestroyPipelineLayout(mLogicalDevice, mPipelineLayout, nullptr);
+}
+
+void VulkanApplication::initFrameBuffers() {
+    mSwapchainFrameBuffers.resize(mSwapchainImageViews.size());
+
+    for (auto i = 0; i < mSwapchainImageViews.size(); i++) {
+        VkImageView attachments[] = {
+            mSwapchainImageViews[i]
+        };
+
+        VkFramebufferCreateInfo framebufferCreateInfo{};
+        framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferCreateInfo.renderPass = mRenderPass;
+        framebufferCreateInfo.attachmentCount = 1;
+        framebufferCreateInfo.pAttachments = attachments;
+        framebufferCreateInfo.width = mSwapchainExtent.width;
+        framebufferCreateInfo.height = mSwapchainExtent.height;
+        framebufferCreateInfo.layers = 1;
+
+        CHECK(vkCreateFramebuffer(mLogicalDevice, &framebufferCreateInfo, nullptr, &mSwapchainFrameBuffers[i]),
+              "failed to create framebuffer");
+    }
+}
+
+void VulkanApplication::deinitFrameBuffers() {
+    for (auto framebuffer : mSwapchainFrameBuffers) {
+        vkDestroyFramebuffer(mLogicalDevice, framebuffer, nullptr);
+    }
+}
+
+void VulkanApplication::initCommandPool() {
+    auto indices = findQueueFamilies(mPhysicalDevice, mSurface);
+
+    VkCommandPoolCreateInfo commandPoolCreateInfo{};
+    commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    commandPoolCreateInfo.queueFamilyIndex = indices.graphicsFamily;
+
+    CHECK(vkCreateCommandPool(mLogicalDevice, &commandPoolCreateInfo, nullptr, &mCommandPool),
+          "failed to create command pool");
+}
+
+void VulkanApplication::deinitCommandPool() {
+    vkDestroyCommandPool(mLogicalDevice, mCommandPool, nullptr);
+}
+
+void VulkanApplication::initCommandBuffers() {
+    mCommandBuffers.resize(mSwapchainImageViews.size());
+
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = mCommandPool;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = static_cast<uint32_t>(mCommandBuffers.size());
+
+    CHECK(vkAllocateCommandBuffers(mLogicalDevice, &allocInfo, mCommandBuffers.data()),
+          "failed to allocate command buffers");
+
+
+    for (size_t i = 0; i < mCommandBuffers.size(); i++) {
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+        beginInfo.pInheritanceInfo = nullptr;
+
+        CHECK(vkBeginCommandBuffer(mCommandBuffers[i], &beginInfo),
+              "failed to begin recording command buffer");
+
+        VkRenderPassBeginInfo renderPassBeginInfo{};
+        renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        renderPassBeginInfo.renderPass = mRenderPass;
+        renderPassBeginInfo.framebuffer = mSwapchainFrameBuffers[i];
+        renderPassBeginInfo.renderArea.offset = { 0, 0 };
+        renderPassBeginInfo.renderArea.extent = mSwapchainExtent;
+
+        VkClearValue clearColor = { 0.0f, 0.0f, 0.0f, 1.0f };
+        renderPassBeginInfo.clearValueCount = 1;
+        renderPassBeginInfo.pClearValues = &clearColor;
+
+        vkCmdBeginRenderPass(mCommandBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+        vkCmdBindPipeline(mCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline);
+
+        vkCmdDraw(mCommandBuffers[i], 3, 1, 0, 0);
+
+        vkCmdEndRenderPass(mCommandBuffers[i]);
+
+        CHECK(vkEndCommandBuffer(mCommandBuffers[i]),
+              "failed to record command buffer!");
+    }
+}
+
+void VulkanApplication::deinitCommandBuffers() {
+    vkFreeCommandBuffers(mLogicalDevice, mCommandPool, mCommandBuffers.size(), mCommandBuffers.data());
+}
+
+void VulkanApplication::initSync() {
+    mImageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    mRenderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    mInFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+
+    VkSemaphoreCreateInfo semaphoreCreateInfo{};
+    semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    VkFenceCreateInfo fenceCreateInfo{};
+    fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    for (auto i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        CHECK(vkCreateSemaphore(mLogicalDevice, &semaphoreCreateInfo, nullptr, &mImageAvailableSemaphores[i]),
+              "failed to create semaphore 1");
+        CHECK(vkCreateSemaphore(mLogicalDevice, &semaphoreCreateInfo, nullptr, &mRenderFinishedSemaphores[i]),
+              "failed to create semaphore 2");
+        CHECK(vkCreateFence(mLogicalDevice, &fenceCreateInfo, nullptr, &mInFlightFences[i]),
+              "failed to create fence");
+    }
+}
+
+void VulkanApplication::deinitSync() {
+    for (auto i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vkDestroySemaphore(mLogicalDevice, mRenderFinishedSemaphores[i], nullptr);
+        vkDestroySemaphore(mLogicalDevice, mImageAvailableSemaphores[i], nullptr);
+        vkDestroyFence(mLogicalDevice, mInFlightFences[i], nullptr);
+    }
+}
+
+void VulkanApplication::onResize() {
+    int width = 0, height = 0;
+    while (width == 0 || height == 0) {
+        glfwGetFramebufferSize(mWindow, &width, &height);
+        glfwWaitEvents();
+    }
+
+    vkDeviceWaitIdle(mLogicalDevice);
+
+    // re create swapchain
+
+    deinitCommandBuffers();
+    deinitCommandPool();
+    deinitFrameBuffers();
+    deinitGraphicsPipeline();
+    deinitRenderPass();
+    deinitImageViews();
+    deinitSwapchain();
+
+    initSwapchain();
+    initImageViews();
+    initRenderPass();
+    initGraphicsPipeline();
+    initFrameBuffers();
+    initCommandPool();
+    initCommandBuffers();
+}
+

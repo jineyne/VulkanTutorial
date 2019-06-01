@@ -17,6 +17,7 @@
 #include <cstdlib>
 #include <limits>
 #include <algorithm>
+#include <fstream>
 
 #define CHECK(result, msg) if ((result) != VK_SUCCESS) throw std::runtime_error(msg)
 
@@ -27,6 +28,8 @@
 #define DEBUG_MODE 0
 #define DEBUG_ONLY(x)
 #endif
+
+const int MAX_FRAMES_IN_FLIGHT = 2;
 
 const std::vector<const char *> validationLayers = {
         "VK_LAYER_LUNARG_standard_validation"
@@ -76,11 +79,30 @@ private:
 
     std::vector<VkImageView> mSwapchainImageViews;
 
+    VkRenderPass mRenderPass;
+
+    VkPipeline mPipeline;
+    VkPipelineLayout mPipelineLayout;
+
+    std::vector<VkFramebuffer> mSwapchainFrameBuffers;
+
+    VkCommandPool mCommandPool;
+    std::vector<VkCommandBuffer> mCommandBuffers;
+
+    std::vector<VkSemaphore> mImageAvailableSemaphores;
+    std::vector<VkSemaphore> mRenderFinishedSemaphores;
+    std::vector<VkFence> mInFlightFences;
+    size_t mCurrentFrame = 0;
+
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
     VkDebugUtilsMessengerCreateInfoEXT mDebugReportCallbackCreateInfo{};
 
 public:
     void run();
+
+    void beginDraw();
+
+    void endDraw();
 
 private:
     void initWindow();
@@ -114,6 +136,32 @@ private:
     void initImageViews();
 
     void deinitImageViews();
+
+    void initRenderPass();
+
+    void deinitRenderPass();
+
+    void initGraphicsPipeline();
+
+    void deinitGraphicsPipeline();
+
+    void initFrameBuffers();
+
+    void deinitFrameBuffers();
+
+    void initCommandPool();
+
+    void deinitCommandPool();
+
+    void initCommandBuffers();
+
+    void deinitCommandBuffers();
+
+    void initSync();
+
+    void deinitSync();
+
+    void onResize();
 
     bool checkValidationLayerSupport();
 
