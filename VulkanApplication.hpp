@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <limits>
+#include <algorithm>
 
 #define CHECK(result, msg) if ((result) != VK_SUCCESS) throw std::runtime_error(msg)
 
