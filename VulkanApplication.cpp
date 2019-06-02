@@ -287,6 +287,7 @@ void VulkanApplication::run() {
     initIndexBuffer();
     initUniformBuffers();
     initDescriptorPool();
+    initDescriptorSets();
     initCommandBuffers();
     initSync();
 
@@ -297,6 +298,7 @@ void VulkanApplication::run() {
     // deinit
     deinitSync();
     deinitCommandBuffers();
+    deinitDescriptorSets();
     deinitDescriptorPool();
     deinitUniformBuffers();
     deinitIndexBuffer();
@@ -338,7 +340,7 @@ void VulkanApplication::endDraw() {
     VkSemaphore waitSemaphores[] = {mImageAvailableSemaphores[mCurrentFrame]};
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 
-    updateUniformBuffer(imageIndex);
+    updateUniformBuffer(mCurrentFrame);
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -728,8 +730,8 @@ void VulkanApplication::deinitDescriptorSetLayout() {
 }
 
 void VulkanApplication::initGraphicsPipeline() {
-    auto vert = readFile("shaders/vertex.vert.spv");
-    auto frag = readFile("shaders/vertex.frag.spv");
+    auto vert = readFile("shaders/uniform.vert.spv");
+    auto frag = readFile("shaders/uniform.frag.spv");
 
     auto vertModule = createShaderModule(mLogicalDevice, vert);
     auto fragModule = createShaderModule(mLogicalDevice, frag);
@@ -787,7 +789,7 @@ void VulkanApplication::initGraphicsPipeline() {
     pipelineRasterizationStateCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;
     pipelineRasterizationStateCreateInfo.lineWidth = 1.0f;
     pipelineRasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
-    pipelineRasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    pipelineRasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     pipelineRasterizationStateCreateInfo.depthBiasEnable = VK_FALSE;
 
     VkPipelineMultisampleStateCreateInfo pipelineMultisampleStateCreateInfo{};
@@ -942,7 +944,10 @@ void VulkanApplication::initCommandBuffers() {
         VkBuffer vertexBuffers[] = {mVertexBuffer};
         VkDeviceSize offsets[] = {0};
         vkCmdBindVertexBuffers(mCommandBuffers[i], 0, 1, vertexBuffers, offsets);
+
         vkCmdBindIndexBuffer(mCommandBuffers[i], mIndexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
+        vkCmdBindDescriptorSets(mCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineLayout, 0, 1, &mDescriptorSets[i], 0, nullptr);
 
         vkCmdDrawIndexed(mCommandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
@@ -999,6 +1004,7 @@ void VulkanApplication::onResize() {
     // re create swapchain
 
     deinitCommandBuffers();
+    deinitDescriptorSets();
     deinitDescriptorPool();
     deinitUniformBuffers();
     deinitCommandPool();
@@ -1016,6 +1022,7 @@ void VulkanApplication::onResize() {
     initCommandPool();
     initUniformBuffers();
     initDescriptorPool();
+    initDescriptorSets();
     initCommandBuffers();
 }
 
@@ -1063,7 +1070,7 @@ void VulkanApplication::initIndexBuffer() {
     vkUnmapMemory(mLogicalDevice, stagingBufferMemory);
 
     createBuffer(mPhysicalDevice, mLogicalDevice, bufferSize,
-                 VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                 VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, mIndexBuffer, mIndexDeviceMemory);
 
     copyBuffer(mLogicalDevice, mGraphicsQueue, mCommandPool, stagingBuffer, mIndexBuffer, bufferSize);
@@ -1124,7 +1131,7 @@ void VulkanApplication::initDescriptorPool() {
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     poolInfo.poolSizeCount = 1;
     poolInfo.pPoolSizes = &poolSize;
-    poolInfo.maxSets = 1;
+    poolInfo.maxSets = static_cast<uint32_t>(mSwapchainImages.size());
 
     CHECK(vkCreateDescriptorPool(mLogicalDevice, &poolInfo, nullptr, &mDescriptorPool),
           "failed to create descriptor pool");
@@ -1132,5 +1139,40 @@ void VulkanApplication::initDescriptorPool() {
 
 void VulkanApplication::deinitDescriptorPool() {
     vkDestroyDescriptorPool(mLogicalDevice, mDescriptorPool, nullptr);
+}
+
+void VulkanApplication::initDescriptorSets() {
+    std::vector<VkDescriptorSetLayout> layouts(mSwapchainImages.size(), mDescriptorSetLayout);
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = mDescriptorPool;
+    allocInfo.descriptorSetCount = static_cast<uint32_t>(mSwapchainImages.size());
+    allocInfo.pSetLayouts = layouts.data();
+
+    mDescriptorSets.resize(mSwapchainImages.size());
+    CHECK(vkAllocateDescriptorSets(mLogicalDevice, &allocInfo, mDescriptorSets.data()),
+          "failed to allocate descriptor sets");
+
+    for (auto i = 0; i < mSwapchainImages.size(); i++) {
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = mUniformBuffers[i];
+        bufferInfo.offset = 0;
+        bufferInfo.range = sizeof(UniformBufferObject);
+
+        VkWriteDescriptorSet descriptorWrite{};
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet = mDescriptorSets[i];
+        descriptorWrite.dstBinding = 0;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pBufferInfo = &bufferInfo;
+
+        vkUpdateDescriptorSets(mLogicalDevice, 1, &descriptorWrite, 0, nullptr);
+    }
+}
+
+void VulkanApplication::deinitDescriptorSets() {
+    vkFreeDescriptorSets(mLogicalDevice, mDescriptorPool, mDescriptorSets.size(), mDescriptorSets.data());
 }
 

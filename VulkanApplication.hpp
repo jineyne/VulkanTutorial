@@ -7,6 +7,7 @@
 #include <vulkan/vulkan.h>
 
 #define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -60,9 +61,9 @@ struct SwapChainSupportDetails {
 };
 
 struct UniformBufferObject {
-    glm::mat4 model;
-    glm::mat4 view;
-    glm::mat4 proj;
+    alignas(16) glm::mat4 model;
+    alignas(16) glm::mat4 view;
+    alignas(16) glm::mat4 proj;
 };
 
 class VulkanApplication {
@@ -113,7 +114,9 @@ private:
     VkDeviceMemory mIndexDeviceMemory;
     std::vector<VkBuffer> mUniformBuffers;
     std::vector<VkDeviceMemory> mUniformBuffersMemory;
+
     VkDescriptorPool mDescriptorPool;
+    std::vector<VkDescriptorSet> mDescriptorSets;
 
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
     VkDebugUtilsMessengerCreateInfoEXT mDebugReportCallbackCreateInfo{};
@@ -199,6 +202,10 @@ private:
     void initDescriptorPool();
 
     void deinitDescriptorPool();
+
+    void initDescriptorSets();
+
+    void deinitDescriptorSets();
 
     void initSync();
 
