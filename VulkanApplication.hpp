@@ -96,6 +96,9 @@ private:
     std::vector<VkFence> mInFlightFences;
     size_t mCurrentFrame = 0;
 
+    VkBuffer mVertexBuffer;
+    VkDeviceMemory mVertexDeviceMemory;
+
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
     VkDebugUtilsMessengerCreateInfoEXT mDebugReportCallbackCreateInfo{};
 
@@ -158,6 +161,10 @@ private:
     void initCommandBuffers();
 
     void deinitCommandBuffers();
+
+    void initVertexBuffer();
+
+    void deinitVertexBuffer();
 
     void initSync();
 

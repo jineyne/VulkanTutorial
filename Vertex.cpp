@@ -18,7 +18,7 @@ std::array<VkVertexInputAttributeDescription, 2> Vertex::getAttributeDescription
 
     descriptors[1].binding = 0;
     descriptors[1].location = 1;
-    descriptors[1].format = VK_FORMAT_R32G32_SFLOAT;
+    descriptors[1].format = VK_FORMAT_R32G32B32_SFLOAT;
     descriptors[1].offset = offsetof(Vertex, color);
 
     return descriptors;
