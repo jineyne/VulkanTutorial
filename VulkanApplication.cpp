@@ -286,6 +286,7 @@ void VulkanApplication::run() {
     initVertexBuffer();
     initIndexBuffer();
     initUniformBuffers();
+    initDescriptorPool();
     initCommandBuffers();
     initSync();
 
@@ -296,6 +297,7 @@ void VulkanApplication::run() {
     // deinit
     deinitSync();
     deinitCommandBuffers();
+    deinitDescriptorPool();
     deinitUniformBuffers();
     deinitIndexBuffer();
     deinitVertexBuffer();
@@ -997,6 +999,7 @@ void VulkanApplication::onResize() {
     // re create swapchain
 
     deinitCommandBuffers();
+    deinitDescriptorPool();
     deinitUniformBuffers();
     deinitCommandPool();
     deinitFrameBuffers();
@@ -1012,6 +1015,7 @@ void VulkanApplication::onResize() {
     initFrameBuffers();
     initCommandPool();
     initUniformBuffers();
+    initDescriptorPool();
     initCommandBuffers();
 }
 
@@ -1099,7 +1103,7 @@ void VulkanApplication::updateUniformBuffer(uint32_t currentImage) {
     auto currentTime = std::chrono::high_resolution_clock::now();
     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
-    UniformBufferObject ubo = {};
+    UniformBufferObject ubo{};
     ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), mSwapchainExtent.width / (float) mSwapchainExtent.height, 0.1f, 10.0f);
@@ -1109,5 +1113,24 @@ void VulkanApplication::updateUniformBuffer(uint32_t currentImage) {
     vkMapMemory(mLogicalDevice, mUniformBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
     memcpy(data, &ubo, sizeof(ubo));
     vkUnmapMemory(mLogicalDevice, mUniformBuffersMemory[currentImage]);
+}
+
+void VulkanApplication::initDescriptorPool() {
+    VkDescriptorPoolSize poolSize{};
+    poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSize.descriptorCount = static_cast<uint32_t>(mSwapchainImages.size());
+
+    VkDescriptorPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = 1;
+    poolInfo.pPoolSizes = &poolSize;
+    poolInfo.maxSets = 1;
+
+    CHECK(vkCreateDescriptorPool(mLogicalDevice, &poolInfo, nullptr, &mDescriptorPool),
+          "failed to create descriptor pool");
+}
+
+void VulkanApplication::deinitDescriptorPool() {
+    vkDestroyDescriptorPool(mLogicalDevice, mDescriptorPool, nullptr);
 }
 

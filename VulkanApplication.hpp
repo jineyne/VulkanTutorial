@@ -113,7 +113,7 @@ private:
     VkDeviceMemory mIndexDeviceMemory;
     std::vector<VkBuffer> mUniformBuffers;
     std::vector<VkDeviceMemory> mUniformBuffersMemory;
-
+    VkDescriptorPool mDescriptorPool;
 
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
     VkDebugUtilsMessengerCreateInfoEXT mDebugReportCallbackCreateInfo{};
@@ -195,6 +195,10 @@ private:
     void deinitUniformBuffers();
 
     void updateUniformBuffer(uint32_t currentImage);
+
+    void initDescriptorPool();
+
+    void deinitDescriptorPool();
 
     void initSync();
 
