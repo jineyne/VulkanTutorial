@@ -11,11 +11,12 @@ set(GLFW_BUILD_EXAMPLES OFF)
 set(GLFW_INSTALL OFF)
 set(GLFW_BUILD_DOCS OFF)
 add_subdirectory(vender/glfw)
+add_subdirectory(vender/glm)
 
 find_package(Vulkan REQUIRED)
 
-add_executable(VulkanTutorial main.cpp VulkanApplication.cpp VulkanApplication.hpp)
-target_link_libraries(VulkanTutorial PUBLIC Vulkan::Vulkan glfw)
+add_executable(VulkanTutorial main.cpp VulkanApplication.cpp VulkanApplication.hpp Vertex.cpp Vertex.hpp)
+target_link_libraries(VulkanTutorial PUBLIC Vulkan::Vulkan glfw glm)
 
 file(GLOB_RECURSE GLSL_SOURCE_FILES
         "${PROJECT_SOURCE_DIR}/resources/shaders/*.frag"
