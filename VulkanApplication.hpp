@@ -19,6 +19,8 @@
 #include <algorithm>
 #include <fstream>
 
+#include "Vertex.hpp"
+
 #define CHECK(result, msg) if ((result) != VK_SUCCESS) throw std::runtime_error(msg)
 
 #if defined(DEBUG) || defined(_DEBUG) || defined(NDEBUG)

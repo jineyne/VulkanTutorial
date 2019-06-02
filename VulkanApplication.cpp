@@ -1,6 +1,12 @@
 #include "VulkanApplication.hpp"
 
-VKAPI_ATTR VkBool32 VKAPI_CALL 
+static std::vector<Vertex> vertices{
+        {{0.0f,  -0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{0.5f,  0.5f},  {0.0f, 1.0f, 0.0f}},
+        {{-0.5f, 0.5f},  {0.0f, 0.0f, 1.0f}},
+};
+
+VKAPI_ATTR VkBool32 VKAPI_CALL
 debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
               VkDebugUtilsMessageTypeFlagsEXT messageType,
               const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
@@ -85,8 +91,8 @@ static VkExtent2D chooseSwapExtent(GLFWwindow *window, const VkSurfaceCapabiliti
         glfwGetFramebufferSize(window, &width, &height);
 
         VkExtent2D actualExtent = {
-            static_cast<uint32_t>(width),
-            static_cast<uint32_t>(height)
+                static_cast<uint32_t>(width),
+                static_cast<uint32_t>(height)
         };
 
         return actualExtent;
@@ -149,7 +155,7 @@ bool isDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface) {
     return indices.isGraphicsFamilyHasValue && indices.isPresentFamilyHasValue && supported && swapChainAdequate;
 }
 
-static std::vector<char> readFile(const std::string& filename) {
+static std::vector<char> readFile(const std::string &filename) {
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
     if (!file.is_open()) {
@@ -166,14 +172,14 @@ static std::vector<char> readFile(const std::string& filename) {
     return buffer;
 }
 
-VkShaderModule createShaderModule(VkDevice device, const std::vector<char>& code) {
+VkShaderModule createShaderModule(VkDevice device, const std::vector<char> &code) {
     VkShaderModuleCreateInfo shaderModuleCreateInfo{};
     shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     shaderModuleCreateInfo.codeSize = code.size();
     shaderModuleCreateInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
 
     VkShaderModule shaderModule;
-    CHECK(vkCreateShaderModule(device, &shaderModuleCreateInfo, nullptr, &shaderModule), 
+    CHECK(vkCreateShaderModule(device, &shaderModuleCreateInfo, nullptr, &shaderModule),
           "failed to create shader module.");
 
     return shaderModule;
@@ -228,8 +234,8 @@ void VulkanApplication::beginDraw() {
 
 void VulkanApplication::endDraw() {
     uint32_t imageIndex;
-    auto result = vkAcquireNextImageKHR(mLogicalDevice, mSwapchain, UINT64_MAX, 
-                                        mImageAvailableSemaphores[mCurrentFrame], 
+    auto result = vkAcquireNextImageKHR(mLogicalDevice, mSwapchain, UINT64_MAX,
+                                        mImageAvailableSemaphores[mCurrentFrame],
                                         nullptr, &imageIndex);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
@@ -239,8 +245,8 @@ void VulkanApplication::endDraw() {
         throw std::runtime_error("failed to acquire swapchain image");
     }
 
-    VkSemaphore waitSemaphores[] = { mImageAvailableSemaphores[mCurrentFrame] };
-    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    VkSemaphore waitSemaphores[] = {mImageAvailableSemaphores[mCurrentFrame]};
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -250,14 +256,14 @@ void VulkanApplication::endDraw() {
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &mCommandBuffers[imageIndex];
 
-    VkSemaphore signalSemaphores[] = { mRenderFinishedSemaphores[mCurrentFrame] };
+    VkSemaphore signalSemaphores[] = {mRenderFinishedSemaphores[mCurrentFrame]};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
     CHECK(vkQueueSubmit(mGraphicsQueue, 1, &submitInfo, mInFlightFences[mCurrentFrame]),
           "failed to submit draw command buffer");
 
-    VkSwapchainKHR swapChains[] = { mSwapchain };
+    VkSwapchainKHR swapChains[] = {mSwapchain};
 
     VkPresentInfoKHR presentInfo = {};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -545,14 +551,14 @@ void VulkanApplication::initImageViews() {
         imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
         imageViewCreateInfo.format = mSwapchainImageFormat;
         imageViewCreateInfo.components = {
-            VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
-            VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY
+                VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
+                VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY
         };
         imageViewCreateInfo.subresourceRange = {
-            VK_IMAGE_ASPECT_COLOR_BIT,
-            0, 1, 0, 1
+                VK_IMAGE_ASPECT_COLOR_BIT,
+                0, 1, 0, 1
         };
-        CHECK(vkCreateImageView(mLogicalDevice, &imageViewCreateInfo, nullptr, &mSwapchainImageViews[i]), 
+        CHECK(vkCreateImageView(mLogicalDevice, &imageViewCreateInfo, nullptr, &mSwapchainImageViews[i]),
               "failed to create image view");
     }
 }
@@ -609,8 +615,8 @@ void VulkanApplication::deinitRenderPass() {
 }
 
 void VulkanApplication::initGraphicsPipeline() {
-    auto vert = readFile("shaders/shader.vert.spv");
-    auto frag = readFile("shaders/shader.frag.spv");
+    auto vert = readFile("shaders/vertex.vert.spv");
+    auto frag = readFile("shaders/vertex.frag.spv");
 
     auto vertModule = createShaderModule(mLogicalDevice, vert);
     auto fragModule = createShaderModule(mLogicalDevice, frag);
@@ -626,12 +632,16 @@ void VulkanApplication::initGraphicsPipeline() {
     pipelineShaderStageCreateInfos[1].module = fragModule;
     pipelineShaderStageCreateInfos[1].pName = "main";
 
+    auto bindingDescription = Vertex::getBindingDescription();
+    auto attributeDescriptions = Vertex::getAttributeDescriptions();
+
     VkPipelineVertexInputStateCreateInfo pipelineVertexInputStageCreateInfo{};
     pipelineVertexInputStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    pipelineVertexInputStageCreateInfo.vertexBindingDescriptionCount = 0;
-    pipelineVertexInputStageCreateInfo.pVertexAttributeDescriptions = nullptr;
-    pipelineVertexInputStageCreateInfo.vertexAttributeDescriptionCount = 0;
-    pipelineVertexInputStageCreateInfo.pVertexAttributeDescriptions = 0;
+    pipelineVertexInputStageCreateInfo.vertexBindingDescriptionCount = 1;
+    pipelineVertexInputStageCreateInfo.pVertexBindingDescriptions = &bindingDescription;
+    pipelineVertexInputStageCreateInfo.vertexAttributeDescriptionCount =
+            static_cast<uint32_t>(attributeDescriptions.size());
+    pipelineVertexInputStageCreateInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
     VkPipelineInputAssemblyStateCreateInfo pipelineInputAssemblyStageCreateInfo{};
     pipelineInputAssemblyStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -647,7 +657,7 @@ void VulkanApplication::initGraphicsPipeline() {
     viewport.maxDepth = 1.0f;
 
     VkRect2D scissor{};
-    scissor.offset = { 0, 0 };
+    scissor.offset = {0, 0};
     scissor.extent = mSwapchainExtent;
 
     VkPipelineViewportStateCreateInfo pipelineViewportStateCreateInfo{};
@@ -674,7 +684,8 @@ void VulkanApplication::initGraphicsPipeline() {
     pipelineMultisampleStateCreateInfo.minSampleShading = 1.0f;
 
     VkPipelineColorBlendAttachmentState pipelineColorBlendAttachmentState{};
-    pipelineColorBlendAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    pipelineColorBlendAttachmentState.colorWriteMask =
+            VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     pipelineColorBlendAttachmentState.blendEnable = VK_FALSE;
 
     VkPipelineColorBlendStateCreateInfo pipelineColorBlendStateCreateInfo{};
@@ -683,11 +694,11 @@ void VulkanApplication::initGraphicsPipeline() {
     pipelineColorBlendStateCreateInfo.logicOp = VK_LOGIC_OP_COPY;
     pipelineColorBlendStateCreateInfo.attachmentCount = 1;
     pipelineColorBlendStateCreateInfo.pAttachments = &pipelineColorBlendAttachmentState;
-    pipelineColorBlendStateCreateInfo.blendConstants[0] = { 0.0f, };
+    pipelineColorBlendStateCreateInfo.blendConstants[0] = {0.0f,};
 
     VkDynamicState dynamicStates[] = {
-        VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_LINE_WIDTH
+            VK_DYNAMIC_STATE_VIEWPORT,
+            VK_DYNAMIC_STATE_LINE_WIDTH
     };
 
     VkPipelineDynamicStateCreateInfo pipelineDynamicStateCreateInfo{};
@@ -702,7 +713,7 @@ void VulkanApplication::initGraphicsPipeline() {
     pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
     pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
 
-    CHECK(vkCreatePipelineLayout(mLogicalDevice, &pipelineLayoutInfo, nullptr, &mPipelineLayout), 
+    CHECK(vkCreatePipelineLayout(mLogicalDevice, &pipelineLayoutInfo, nullptr, &mPipelineLayout),
           "failed to create pipeline layout");
 
     VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo{};
@@ -740,7 +751,7 @@ void VulkanApplication::initFrameBuffers() {
 
     for (auto i = 0; i < mSwapchainImageViews.size(); i++) {
         VkImageView attachments[] = {
-            mSwapchainImageViews[i]
+                mSwapchainImageViews[i]
         };
 
         VkFramebufferCreateInfo framebufferCreateInfo{};
@@ -804,10 +815,10 @@ void VulkanApplication::initCommandBuffers() {
         renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         renderPassBeginInfo.renderPass = mRenderPass;
         renderPassBeginInfo.framebuffer = mSwapchainFrameBuffers[i];
-        renderPassBeginInfo.renderArea.offset = { 0, 0 };
+        renderPassBeginInfo.renderArea.offset = {0, 0};
         renderPassBeginInfo.renderArea.extent = mSwapchainExtent;
 
-        VkClearValue clearColor = { 0.0f, 0.0f, 0.0f, 1.0f };
+        VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f};
         renderPassBeginInfo.clearValueCount = 1;
         renderPassBeginInfo.pClearValues = &clearColor;
 
