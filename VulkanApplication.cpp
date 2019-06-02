@@ -285,6 +285,7 @@ void VulkanApplication::run() {
     initCommandPool();
     initVertexBuffer();
     initIndexBuffer();
+    initUniformBuffers();
     initCommandBuffers();
     initSync();
 
@@ -295,6 +296,7 @@ void VulkanApplication::run() {
     // deinit
     deinitSync();
     deinitCommandBuffers();
+    deinitUniformBuffers();
     deinitIndexBuffer();
     deinitVertexBuffer();
     deinitCommandPool();
@@ -993,6 +995,7 @@ void VulkanApplication::onResize() {
     // re create swapchain
 
     deinitCommandBuffers();
+    deinitUniformBuffers();
     deinitCommandPool();
     deinitFrameBuffers();
     deinitGraphicsPipeline();
@@ -1006,6 +1009,7 @@ void VulkanApplication::onResize() {
     initGraphicsPipeline();
     initFrameBuffers();
     initCommandPool();
+    initUniformBuffers();
     initCommandBuffers();
 }
 
@@ -1064,5 +1068,25 @@ void VulkanApplication::initIndexBuffer() {
 
 void VulkanApplication::deinitIndexBuffer() {
 
+}
+
+void VulkanApplication::initUniformBuffers() {
+    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+
+    mUniformBuffers.resize(mSwapchainImages.size());
+    mUniformBuffersMemory.resize(mSwapchainImages.size());
+
+    for (size_t i = 0; i < mSwapchainImages.size(); i++) {
+        createBuffer(mPhysicalDevice, mLogicalDevice, bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     mUniformBuffers[i], mUniformBuffersMemory[i]);
+    }
+}
+
+void VulkanApplication::deinitUniformBuffers() {
+    for (size_t i = 0; i < mSwapchainImages.size(); i++) {
+        vkDestroyBuffer(mLogicalDevice, mUniformBuffers[i], nullptr);
+        vkFreeMemory(mLogicalDevice, mUniformBuffersMemory[i], nullptr);
+    }
 }
 

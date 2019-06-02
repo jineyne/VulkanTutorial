@@ -107,6 +107,8 @@ private:
     VkDeviceMemory mVertexDeviceMemory;
     VkBuffer mIndexBuffer;
     VkDeviceMemory mIndexDeviceMemory;
+    std::vector<VkBuffer> mUniformBuffers;
+    std::vector<VkDeviceMemory> mUniformBuffersMemory;
 
 
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
@@ -183,6 +185,10 @@ private:
     void initIndexBuffer();
 
     void deinitIndexBuffer();
+
+    void initUniformBuffers();
+
+    void deinitUniformBuffers();
 
     void initSync();
 
