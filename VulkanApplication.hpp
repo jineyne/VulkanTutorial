@@ -98,6 +98,8 @@ private:
 
     VkBuffer mVertexBuffer;
     VkDeviceMemory mVertexDeviceMemory;
+    VkBuffer mIndexBuffer;
+    VkDeviceMemory mIndexDeviceMemory;
 
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
     VkDebugUtilsMessengerCreateInfoEXT mDebugReportCallbackCreateInfo{};
@@ -165,6 +167,10 @@ private:
     void initVertexBuffer();
 
     void deinitVertexBuffer();
+
+    void initIndexBuffer();
+
+    void deinitIndexBuffer();
 
     void initSync();
 
