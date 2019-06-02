@@ -11,6 +11,8 @@ set(GLFW_BUILD_EXAMPLES OFF)
 set(GLFW_INSTALL OFF)
 set(GLFW_BUILD_DOCS OFF)
 add_subdirectory(vender/glfw)
+
+set(GLM_TEST_ENABLE OFF)
 add_subdirectory(vender/glm)
 
 find_package(Vulkan REQUIRED)
