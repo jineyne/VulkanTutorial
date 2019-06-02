@@ -2,10 +2,14 @@
 #define VULKANTUTORIAL_VULKANAPPLICATION_HPP
 
 #define GLFW_INCLUDE_VULKAN
-
 #include <GLFW/glfw3.h>
 
 #include <vulkan/vulkan.h>
+
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include <iostream>
 #include <sstream>
@@ -18,6 +22,7 @@
 #include <limits>
 #include <algorithm>
 #include <fstream>
+#include <chrono>
 
 #include "Vertex.hpp"
 
@@ -55,6 +60,12 @@ struct SwapChainSupportDetails {
     std::vector<VkPresentModeKHR> presentModes;
 };
 
+struct UniformBufferObject {
+    alignas(16) glm::mat4 model;
+    alignas(16) glm::mat4 view;
+    alignas(16) glm::mat4 proj;
+};
+
 class VulkanApplication {
 public:
     const static uint32_t Width = 800, Height = 600;
@@ -84,6 +95,7 @@ private:
     VkRenderPass mRenderPass;
 
     VkPipeline mPipeline;
+    VkDescriptorSetLayout mDescriptorSetLayout;
     VkPipelineLayout mPipelineLayout;
 
     std::vector<VkFramebuffer> mSwapchainFrameBuffers;
@@ -100,6 +112,11 @@ private:
     VkDeviceMemory mVertexDeviceMemory;
     VkBuffer mIndexBuffer;
     VkDeviceMemory mIndexDeviceMemory;
+    std::vector<VkBuffer> mUniformBuffers;
+    std::vector<VkDeviceMemory> mUniformBuffersMemory;
+
+    VkDescriptorPool mDescriptorPool;
+    std::vector<VkDescriptorSet> mDescriptorSets;
 
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
     VkDebugUtilsMessengerCreateInfoEXT mDebugReportCallbackCreateInfo{};
@@ -148,6 +165,10 @@ private:
 
     void deinitRenderPass();
 
+    void initDescriptorSetLayout();
+
+    void deinitDescriptorSetLayout();
+
     void initGraphicsPipeline();
 
     void deinitGraphicsPipeline();
@@ -171,6 +192,20 @@ private:
     void initIndexBuffer();
 
     void deinitIndexBuffer();
+
+    void initUniformBuffers();
+
+    void deinitUniformBuffers();
+
+    void updateUniformBuffer(uint32_t currentImage);
+
+    void initDescriptorPool();
+
+    void deinitDescriptorPool();
+
+    void initDescriptorSets();
+
+    void deinitDescriptorSets();
 
     void initSync();
 
