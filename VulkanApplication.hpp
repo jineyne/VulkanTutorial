@@ -2,10 +2,13 @@
 #define VULKANTUTORIAL_VULKANAPPLICATION_HPP
 
 #define GLFW_INCLUDE_VULKAN
-
 #include <GLFW/glfw3.h>
 
 #include <vulkan/vulkan.h>
+
+#define GLM_FORCE_RADIANS
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include <iostream>
 #include <sstream>
@@ -18,6 +21,7 @@
 #include <limits>
 #include <algorithm>
 #include <fstream>
+#include <chrono>
 
 #include "Vertex.hpp"
 
@@ -189,6 +193,8 @@ private:
     void initUniformBuffers();
 
     void deinitUniformBuffers();
+
+    void updateUniformBuffer(uint32_t currentImage);
 
     void initSync();
 
