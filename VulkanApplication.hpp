@@ -55,6 +55,12 @@ struct SwapChainSupportDetails {
     std::vector<VkPresentModeKHR> presentModes;
 };
 
+struct UniformBufferObject {
+    glm::mat4 model;
+    glm::mat4 view;
+    glm::mat4 proj;
+};
+
 class VulkanApplication {
 public:
     const static uint32_t Width = 800, Height = 600;
@@ -84,6 +90,7 @@ private:
     VkRenderPass mRenderPass;
 
     VkPipeline mPipeline;
+    VkDescriptorSetLayout mDescriptorSetLayout;
     VkPipelineLayout mPipelineLayout;
 
     std::vector<VkFramebuffer> mSwapchainFrameBuffers;
@@ -100,6 +107,7 @@ private:
     VkDeviceMemory mVertexDeviceMemory;
     VkBuffer mIndexBuffer;
     VkDeviceMemory mIndexDeviceMemory;
+
 
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
     VkDebugUtilsMessengerCreateInfoEXT mDebugReportCallbackCreateInfo{};
@@ -147,6 +155,10 @@ private:
     void initRenderPass();
 
     void deinitRenderPass();
+
+    void initDescriptorSetLayout();
+
+    void deinitDescriptorSetLayout();
 
     void initGraphicsPipeline();
 

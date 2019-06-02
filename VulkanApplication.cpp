@@ -278,6 +278,7 @@ void VulkanApplication::run() {
     initSwapchain();
     initImageViews();
     initRenderPass();
+    initDescriptorSetLayout();
     initGraphicsPipeline();
 
     initFrameBuffers();
@@ -300,6 +301,7 @@ void VulkanApplication::run() {
     deinitFrameBuffers();
 
     deinitGraphicsPipeline();
+    deinitDescriptorSetLayout();
     deinitRenderPass();
     deinitImageViews();
     deinitSwapchain();
@@ -698,6 +700,27 @@ void VulkanApplication::deinitRenderPass() {
     vkDestroyRenderPass(mLogicalDevice, mRenderPass, nullptr);
 }
 
+void VulkanApplication::initDescriptorSetLayout() {
+    VkDescriptorSetLayoutBinding uboLayoutBinding = {};
+    uboLayoutBinding.binding = 0;
+    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboLayoutBinding.descriptorCount = 1;
+    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    uboLayoutBinding.pImmutableSamplers = nullptr;
+
+    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo{};
+    descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorSetLayoutCreateInfo.bindingCount = 1;
+    descriptorSetLayoutCreateInfo.pBindings = &uboLayoutBinding;
+
+    CHECK(vkCreateDescriptorSetLayout(mLogicalDevice, &descriptorSetLayoutCreateInfo, nullptr, &mDescriptorSetLayout),
+          "failed to create descriptor set layout");
+}
+
+void VulkanApplication::deinitDescriptorSetLayout() {
+    vkDestroyDescriptorSetLayout(mLogicalDevice, mDescriptorSetLayout, nullptr);
+}
+
 void VulkanApplication::initGraphicsPipeline() {
     auto vert = readFile("shaders/vertex.vert.spv");
     auto frag = readFile("shaders/vertex.frag.spv");
@@ -792,8 +815,8 @@ void VulkanApplication::initGraphicsPipeline() {
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 0; // Optional
-    pipelineLayoutInfo.pSetLayouts = nullptr; // Optional
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &mDescriptorSetLayout;
     pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
     pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
 
