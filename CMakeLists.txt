@@ -12,16 +12,23 @@ set(GLFW_INSTALL OFF)
 set(GLFW_BUILD_DOCS OFF)
 add_subdirectory(vender/glfw)
 
+set(GLM_TEST_ENABLE OFF)
+add_subdirectory(vender/glm)
+
 find_package(Vulkan REQUIRED)
 
-add_executable(VulkanTutorial main.cpp VulkanApplication.cpp VulkanApplication.hpp)
-target_link_libraries(VulkanTutorial PUBLIC Vulkan::Vulkan glfw)
+add_executable(VulkanTutorial main.cpp VulkanApplication.cpp VulkanApplication.hpp Vertex.cpp Vertex.hpp)
+target_link_libraries(VulkanTutorial PUBLIC Vulkan::Vulkan glfw glm)
 
 file(GLOB_RECURSE GLSL_SOURCE_FILES
         "${PROJECT_SOURCE_DIR}/resources/shaders/*.frag"
         "${PROJECT_SOURCE_DIR}/resources/shaders/*.vert")
 
-file(TO_NATIVE_PATH "${Vulkan_LIBRARIES}/../../bin/glslangValidator" GLSL_VALIDATOR)
+if (Win32)
+    file(TO_NATIVE_PATH "${Vulkan_LIBRARIES}/../../bin/glslangValidator" GLSL_VALIDATOR)
+else ()
+    file(TO_NATIVE_PATH "glslangValidator" GLSL_VALIDATOR)
+endif ()
 
 foreach(GLSL ${GLSL_SOURCE_FILES})
     get_filename_component(FILE_NAME ${GLSL} NAME)

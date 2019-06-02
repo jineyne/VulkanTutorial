@@ -1,3 +1,6 @@
 [submodule "vender/glfw"]
 	path = vender/glfw
 	url = https://github.com/glfw/glfw
+[submodule "vender/glm"]
+	path = vender/glm
+	url = https://github.com/g-truc/glm

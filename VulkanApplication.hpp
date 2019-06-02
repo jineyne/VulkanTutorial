@@ -19,6 +19,8 @@
 #include <algorithm>
 #include <fstream>
 
+#include "Vertex.hpp"
+
 #define CHECK(result, msg) if ((result) != VK_SUCCESS) throw std::runtime_error(msg)
 
 #if defined(DEBUG) || defined(_DEBUG) || defined(NDEBUG)
@@ -94,6 +96,11 @@ private:
     std::vector<VkFence> mInFlightFences;
     size_t mCurrentFrame = 0;
 
+    VkBuffer mVertexBuffer;
+    VkDeviceMemory mVertexDeviceMemory;
+    VkBuffer mIndexBuffer;
+    VkDeviceMemory mIndexDeviceMemory;
+
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
     VkDebugUtilsMessengerCreateInfoEXT mDebugReportCallbackCreateInfo{};
 
@@ -156,6 +163,14 @@ private:
     void initCommandBuffers();
 
     void deinitCommandBuffers();
+
+    void initVertexBuffer();
+
+    void deinitVertexBuffer();
+
+    void initIndexBuffer();
+
+    void deinitIndexBuffer();
 
     void initSync();
 
