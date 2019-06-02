@@ -1067,7 +1067,8 @@ void VulkanApplication::initIndexBuffer() {
 }
 
 void VulkanApplication::deinitIndexBuffer() {
-
+    vkDestroyBuffer(mLogicalDevice, mIndexBuffer, nullptr);
+    vkFreeMemory(mLogicalDevice, mIndexDeviceMemory, nullptr);
 }
 
 void VulkanApplication::initUniformBuffers() {
